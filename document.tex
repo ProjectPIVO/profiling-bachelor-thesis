@@ -1,0 +1,823 @@
+\documentclass{bakalarka}
+\usepackage[cp1250]{inputenc}
+\usepackage[czech]{babel}
+\usepackage{ae}
+\usepackage{fancyhdr}
+\usepackage{float}
+\RequirePackage[nohyperlinks]{acronym}[2005/10/04]
+\usepackage{url}
+\usepackage{breakurl} 
+\usepackage[breaklinks]{hyperref}
+\usepackage{pifont}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{svg}
+
+\setlength\parindent{0pt}
+
+\renewcommand{\lstlistingname}{Vıpis kódu}
+
+\lstdefinestyle{customc}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=,
+  xleftmargin=\parindent,
+  language=C,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{purple},
+  identifierstyle=\color{black},
+  stringstyle=\color{orange},
+}
+
+\lstdefinestyle{customasm}{
+  belowcaptionskip=1\baselineskip,
+  frame=,
+  xleftmargin=\parindent,
+  language=[x86masm]Assembler,
+  basicstyle=\footnotesize\ttfamily,
+  commentstyle=\itshape\color{black},
+  morekeywords={movq,pushq,subq,movl,addl,eax,ebx,ecx,edxs,testl,testb,rbp,rsp,beq,bne}
+}
+
+\lstdefinestyle{custombash}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=,
+  xleftmargin=\parindent,
+  language=bash,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{purple},
+  identifierstyle=\color{black},
+  stringstyle=\color{orange},
+}
+
+\lstset{escapechar=@,style=customc}
+
+\author{Martin Úbl}
+\title{Vizualizace dat profilingovıch nástrojù}
+\titlet{}
+\titlett{}
+\university{Západoèeská univerzita v Plzni}
+\faculty{Fakulta aplikovanıch vìd}
+\department{Katedra informatiky a vıpoèetní techniky}
+\subject{Projekt 5}
+\town{Plzeò}
+
+\begin{document}
+\pagestyle{fancy}
+
+\newcommand{\tick}{\ding{52}}
+\newcommand{\tickcross}{\ding{55}}
+\renewcommand{\chaptermark}[1]{\markboth{\textit{#1}}{}}
+\renewcommand{\sectionmark}[1]{\markright{\textit{#1}}{}}
+\cfoot{\thepage}
+\lhead{\leftmark}
+\rhead{\rightmark}
+\maketitle
+
+\thispagestyle{empty}
+\section*{Podìkování}
+Rád bych touto cestou podìkoval Ing. Jindøichu Skupovi za odborné vedení a cenné rady v prùbìhu této práce. Dále patøí podìkování panu Jiøímu Jabùrkovi za pomoc pøi získávání praktickıch zkušeností v oblasti zkoumané problematiky.
+
+\vfill
+
+\section*{Prohlášení}
+Prohlašuji, e jsem bakaláøskou práci vypracoval samostatnì a vıhradnì s~pouitím citovanıch pramenù.
+\vskip 1.5em
+V Plzni dne \today
+\vskip 0.7em
+\hskip 9cm Martin Úbl
+
+\chapter*{Abstrakt}
+\thispagestyle{empty}
+
+\section*{English}
+
+The main goal of this paper is to analyze available profiling tools, their output formats, visualization methods of their collected data and to design portable modular tool for such data visualization.
+
+In first chapters, the problem of profiling and collecting performance data is investigated. Next part focuses on analysis of commonly used profiling tools and their output formats, common visualization methods and already available visualization tools.
+
+The last chapter contains design of modular tool, which would be able to load, analyze and visualize profiling data independently of what profiler was used and which operating system the user runs.
+
+\section*{Czech}
+
+Hlavním cílem této práce je analıza dostupnıch profilingovıch nástrojù, jejich vıstupních formátù, zpùsobù vizualizace jimi nasbíranıch dat a návrh pøenositelného modulárního nástroje pro jejich vizualizaci.
+
+V prvních kapitolách je rozebrána problematika profilingu a zpùsobù sbìru dat. Následuje analıza pouívanıch profilingovıch nástrojù a formátu jejich vıstupu, dále zpùsobù vizualizace profilingovıch dat a nástrojù pro vizualizaci, které jsou ji dostupné.
+
+V poslední kapitole je obsaen návrh modulárního nástroje, kterı bude schopen nezávisle na operaèním systému a pouitém profileru naèíst odpovídajícím modulem profilingová data, vnitønì je analyzovat a pomocí vıstupního modulu poskytnout jejich vizualizaci.
+
+\tableofcontents
+\pagestyle{fancy}
+\renewcommand{\chaptermark}[1]{\markboth{\textit{#1}}{}}
+\renewcommand{\sectionmark}[1]{\markright{\textit{#1}}{}}
+\cfoot{\thepage}
+\lhead{\leftmark}
+\rhead{\rightmark}
+\parskip 1em
+
+\newpage
+
+\chapter{Úvod}
+Vıkon programù, tedy schopnost zpracovat co nejvìtší mnoství dat nebo provést co nejvíce vıpoètù za jednotku èasu, byl vdy velmi dùleitım kritériem pouitelnosti kteréhokoliv software. Pøi psaní programového kódu je tedy nutné dbát na vhodnou volbu algoritmu, na zpùsob zápisu a v krajních pøípadech i na to, jak kompilátor pøeloí zapsanı programovı kód do binární podoby, pøípadnì jak interpret uvnitø odvodí posloupnost operací nutnou k jeho vykonání. Takovıch informací je ale pøíliš na to, aby bylo v lidskıch silách bez pomoci strojové analızy vyvinout optimální kód - tedy takovı, kterı má prokazatelnì nejvìtší vıkon bez ztráty pøesnosti a správnosti vısledku. Proto existují nástroje zvané \uv{profilery}, které analyzují bìh programu, vıkon jednotlivıch èástí kódu, pøípadnì staticky i kód samotnı, aby mohly posléze vygenerovat zprávu o tom, kde program tráví nejvíce èasu a kde je tedy vhodné provést optimalizaci. Stejnì jako profilery nasbíraná data je dùleitı zpùsob jejich prezentování vıvojáøi, aby mohl optimalizovat tu èást programu, která je skuteènì zodpovìdná za pomalı bìh.
+
+Cílem této práce je analyzovat dostupné profilery, jejich vıstupní formáty, zpùsoby, jakım prezentují nasbíraná data uivateli a existující zpùsoby vizualizace tìchto dat obecnì, a na základì této analızy navrhnout modulární nástroj, kterı dovede vizualizovat vıstupy rùznıch profilerù v jednotné formì. Modularita bude spoèívat v oddìlené implementaci jádra aplikace, modulù pro naèítání dat z profilerù a modulù vıstupních. Dalším poadavkem je pøenositelnost mezi bìnımi platformami.
+
+Navrenı nástroj tedy nebude obstarávat sbìr dat, pouze jejich zpracování a vizualizaci standardními zpùsoby.
+
+\newpage
+
+\chapter{Profiling}
+
+Profiling, nìkdy nazıvanı \emph{vıkonnostní analıza}, je zpùsob vyhledávání míst v programu, která vıraznì sniují vıkon celé aplikace, popø. celého systému. Takové místo se nazıvá \emph{bottleneck} a jeho identifikace nemusí bıt snadná, stejnì jako pozdìjší øešení. K identifikaci vıkonnostních problémù slouí nástroje zvané \emph{profilery}, které se starají o sbìr informací z bìhu programu a nìkdy i ze statické analızy kódu. Tato data pak pøedají vizualizaènímu nástroji, a u ve formì souboru nebo datového proudu, a ten je poskytne v lidmi interpretovatelné formì vıvojáøi.
+
+\section{Vıkon}
+
+Bavíme-li se o analıze vıkonu programù, je nutné stanovit, co vlastnì sledujeme, a co oèekáváme, e nám profilery poskytnou. Hlavní velièinou, kterou budeme sledovat, je vıkon. V tomto kontextu lze pouít fyzikální definici, tedy e vıkon je práce vykonaná za jednotku èasu. U èasu se mùeme zaobírat pouze jednotkou, tedy za jakı èasovı úsek budeme práci sledovat - to je ale velmi specifické pro kadı pøípad, a proto se tím nebudeme v obecné rovinì zaobírat. Zbıvá pouze definovat práci. Tu mùeme v této terminologii popsat napøíklad jako poèet vykonanıch instrukcí, co je exaktní mìøítko z hlediska hardware, ale nemusí mít dostateènou vypovídací hodnotu o skuteèné efektivní práci. Proto práci definujeme spíše jako poèet vykonanıch operací, kde operaci mùeme abstrahovat napøíklad na funkèní volání. Z toho vyplıvá i to, e je nutné dùslednì èlenit programovı kód do funkcí (metod, objektù), aby bylo moné tuto metriku vùbec pouít.
+
+\section{Bottleneck}
+
+Pojmem \emph{bottleneck} se obecnì oznaèuje kterıkoliv element (modul, komponenta, funkce), kterı zpùsobuje zpomalení celku (aplikace, stroje). Bottleneck mùeme najít na rùznıch místech, a to nejen v programovém kódu - mùe napøíklad jít o zpodìní pøi komunikaci pøes sí, pøi zápisu nebo ètení z disku. To jsou takzvané hardwarové bottlenecky, a mají pouze nepøímı vliv na vıkon programu samotného. Lze je øešit buï vımìnou souèástky, nebo jinou fyzickou zmìnou (vımìna kabelu, zmìna topologie sítì, atd.).
+
+Hlavním bodem zájmu bude ale bottleneck softwarovı, tedy ten, co lze optimalizovat pouze zmìnami v programovém kódu. Nutno dodat, e optimalizace softwarového bottlenecku nemusí nutnì znamenat jeho odstranìní. Pokud jde napøíklad o zápis velkého objemu dat na pevnı disk, je samozøejmé, e tato èinnost bude trvat delší dobu, a bez optimalizace na úrovni hardware (napø. vımìna rotaèního disku za SSD) se nelze zbavit ani zpodìní pøi provádìní programu. Ve spoustì pøípadù, pokud dokonèení zápisu nemusí blokovat bìh programu, se ale lze vyhnout èekání, a to napøíklad vhodnou paralelizací.
+
+Doba provádìní programu bude vdy záviset na hardware. Dùleité je proto oddìlit problém softwarovı od problému hardwarového. Vıkonnostní optimalizaci softwarového rázu lze definovat jako takovı zásah do programového kódu, kterı zkrátí dobu provádìní daného úseku kódu beze zmìny jeho vıstupu. Pouitím abstrakce z pøedchozí sekce jde o sníení poètu operací, pøípadnì o vımìnu za ménì nároèné operace.
+
+Dále se budeme zabıvat pouze bottlenecky softwarovımi.
+
+\subsection{Typické øešení}
+
+Velmi èasto vzniká chyba v pouití nevhodného algoritmu, a to buï obecnì, nebo v závislosti na situaci. Školním pøípadem by byly øadící algoritmy - primitivním zpùsobem, jak øadit pole èísel, je napøíklad \emph{bubble sort}. Jsou ale obecnì známy mnohem efektivnìjší algoritmy øazení pro jakoukoliv mnoinu èísel. Proto je volba \emph{bubble sortu} obecnì nevhodná z hlediska vıkonu. Nevhodná volba v závislosti na situaci èasto spoèívá v opomenutí nìjakého faktu, kterı se situací souvisí - napøíklad nìjaká definovatelná pravidelnost ve vstupních datech. V øadících algoritmech by byla dobrım pøíkladem seøazená posloupnost na vstupu. Pokud bychom mohli ve vìtšinì pøípadù pøedpokládat seøazenou nebo témìø seøazenou posloupnost, pak není vhodné implementovat algoritmus, kterı pøidává velkou reii v podobì pøeskupování ji seøazené podposloupnosti (napø. \emph{heap sort}), ale je lepší vyuít takovı, kterı lépe pracuje s témìø seøazenou posloupností (napø. \emph{insertion sort} a jeho varianty).
+
+Další typickou pøíèinou neoptimálního bìhu je nevhodné vyuití datovıch úloiš obecnì. Zpravidla je vhodné mít jako prostøedníka mezi pomalım a okamitım úloištìm nìjakou vyrovnávací pamì, takzvanou \emph{cache}. Vyuitím takovéto pamìti odpadá nutnost ádat pomalé úloištì pro kadı blok, kterı nás zajímá. Místo toho lze do cache nahrát mnohem vìtší mnoství dat, která jsou napøíklad èasto vyuívaná, nebo v blízkém okolí aktuálnì ádanıch dat. Tím je moné minimalizovat pøístupovou dobu pro pøípad opakovaného nebo sekvenèního ètení.
+
+Speciálním pøípadem nepøímo viditelného datového úloištì je cache procesoru, její vyuití je pøímo nutností pro rozumnı bìh kteréhokoliv programu. Ètení a zápis zde toti probíhá v nìkolikanásobnì kratším èase, ne ve standardní operaèní pamìti. To, co se v cache procesoru uchovává je moné v rámci programu ovlivnit napøíklad tak, e je respektován princip \emph{lokality} - pokud jsou data uchována v pamìti za sebou, a je k ním i tak pøistupováno, nevzniká v CPU cache tolik cache-miss\footnote{skuteènost, kdy nebyla nalezena poloka v cache procesoru, take musí bıt vyzvednuta z pomalejšího úloištì} a provádìní programu je podstatnì rychlejší.
+
+\section{Kritické optimalizace}
+
+V krajních pøípadech, kdy máme jistotu, e nelze pouít lepší algoritmus a nelze lépe optimalizovat pøístupy k datovım úloištím, ale stále potøebujeme zvednout vıkon, se naskıtá monost pøistoupit k tzv. \emph{kritickım optimalizacím}. Ty spoèívají hlavnì ve sníení nároènosti na úrovni instrukcí. Velkou èást optimalizací na úrovni instrukcí ale dìlá sám kompilátor, jeliko se èasto jedná o typické pøípady.
+
+Dobrım pøíkladem kompilátorem obtínì proveditelné optimalizace je minimalizace poètu skokù, které jsou vykonány. Procesory, které implementují pipelining\footnote{zpùsob paralelního zpracování instrukcí ve vzájemnì se nepøekrıvajících fázích}, musí toti pøi provedení skoku zahodit doposud pøedzpracované instrukce a zaèít se zpracováním dalších na novém místì programu. Jeliko ve veškerıch moderních programovacích jazycích dochází ke skoku pouze v rámci podmínek a cyklù, budou právì tyto struktury hlavním bodem zájmu pøi optimalizaci poètu skokù. Co se podmínek tıèe, lze vyuít pravdìpodobnostní pøístup - pokud je pravdìpodobné, e podmínka bude splnìna ve vìtšinì pøípadù, je vhodné zajistit, aby se pøi splnìní podmínky neprovádìl skok.
+
+Pøíklad optimalizace skoku lze vidìt v následujících úryvcích kódu. V kódu \ref{branch_1_c} je implementována funkce, která urèitım zpùsobem trasformuje vstupní parametr. Uprostøed funkce je transformace podmínìná, která testuje, zdali se nejedná o krajní pøípad - funkce \texttt{is\_corner\_case()} bude vracet ve vìtšinì pøípadù hodnotu $0$, tedy podmínka splnìna nebude. V pseudoassembly kódu \ref{branch_1_asm} lze vidìt, e se pøi nesplnìní podmínky provede skok na návìští pod blokem pøíkazù, co by se provedly pøi platnosti podmínky. Jeliko podmínka bude splnìna ve velmi malém mnoství pøípadù, bude se naopak ve velkém mnoství pøípadù provádìt skok.
+
+\lstset{escapechar=@,style=customc}
+\begin{lstlisting}[caption=Funkce v jazyce C znázoròující nutnost skoku pøi splnìné podmínce, label=branch_1_c]
+int testFunction(int value)
+{
+    value *= 2;
+  
+    if (is_corner_case(value))
+        value += 10;
+  
+    value *= 2;
+  
+    return value;
+}
+\end{lstlisting}
+
+\lstset{escapechar=@,style=customasm}
+\begin{lstlisting}[caption=Pseudoassembly verze kódu \ref{branch_1_c}, label=branch_1_asm]
+testFunction(VALUE):
+    mul     2, VALUE
+    call    is_corner_case(VALUE)
+    cmp     %eax, 0
+    beq     .LBL1
+    add     10, VALUE
+.LBL1:
+    mul     2, VALUE
+    ret
+\end{lstlisting}
+
+Pøepis kódu do pravdìpodobnostnì optimální podoby by obecnì záleel na konkrétní situaci. V tomto pøípadì lze provést invertování podmínky a návrat z funkèního volání o nìco døíve pøi pozitivním scénáøi. Jak lze vidìt z kódu \ref{branch_2_c}, funkce je o nìco delší. Za cenu delšího kódu byl získán takovı sled instrukcí, ve kterém je vıraznì menší pravdìpodobnost skoku.
+\\
+
+\lstset{escapechar=@,style=customc}
+\begin{lstlisting}[caption=Funkce v jazyce C znázoròující nutnost skoku pøi splnìné podmínce, label=branch_2_c]
+int testFunction(int value)
+{
+    value *= 2;
+  
+    if (!is_corner_case(value))
+    {
+        value += 2;
+        return value;
+    }
+
+    value += 10;
+    value *= 2;
+
+    return value;
+}
+\end{lstlisting}
+
+\lstset{escapechar=@,style=customasm}
+\begin{lstlisting}[caption=Pseudoassembly verze kódu \ref{branch_2_c}, label=branch_2_asm]
+testFunction(VALUE):
+    mul     2, VALUE
+    call    is_corner_case(VALUE)
+    cmp     %eax, 0
+    bne     .LBL1
+    add     2, VALUE
+    ret
+.LBL1:
+    add     10, VALUE
+    mul     2, VALUE
+    ret
+\end{lstlisting}
+
+Pokud je moné pravdivost podmínky alespoò s urèitou pravdìpodobností pøedpovìdìt, je vhodné kód pøeuspoøádat tak, aby byly minimalizovány skokové instrukce, tedy nutnost resetovat pipelining. Tento pøípad je toti jedním z mála, kterı kompilátor nedovede s jistotou optimalizovat - v momentì kompilace toti nelze strojovì urèit, zdali je nìkterı scénáø splnìní podmínky více pravdìpodobnı. Nìkteré kompilátory kombinované s vıvojovım prostøedím obsahují monost tzv. \emph{profile-guided optimalizations}, které právì s pravdìpodobností skokù pracují, a vıslednı kód na základì nasbíranıch dat optimalizují. Pro potøeby této práce je ale nutné znát hlavnì fakt, e existují profilery, které èetnosti scénáøù splnìní podmínky poèítají a pøedávají je skrze vizualizaèní nástroj programátorovi.
+
+Nìkteré kompilátory, napøíklad \emph{gcc}, obsahují tzv. \emph{branch prediction built-in} funkci \texttt{\_\_builtin\_expect}, prostøednictvím které lze pøedat kompilátoru informaci o pravdìpodobnosti splnìní podmínky. Není tedy nutné kód pøeskupovat ruènì.
+
+
+
+\section{Metody sbìru dat}
+
+Zpùsobù, jakımi jsou získávána vıkonnostní data, mùe bıt více. Mezi hlavními a reálnì pouívanımi jsou ale pouze ètyøi, které budou popsány v následujících podkapitolách.
+
+\subsection{Vzorkování}\label{subsec:sampling}
+
+Principem vzorkování se rozumí opakované snímkování stavu provádìní programu. Kadı snímek obsahuje data spojená s funkèním voláním a souèasnım zanoøením, hodnotu programového èítaèe a volitelnì i další údaje, jako hodnotu ostatních registrù, informaci o vláknì, které kód vykonává, a další, spíše specifické údaje pro danı profiler.
+
+Vzorky mohou bıt poøizovány rùznımi zpùsoby. Starším pøístupem je periodické vzorkování èistì na základì èasu, konkrétnì pomocí hardwarového pøerušení èasovaèe (IRQ 0). To v první øadì dovolovalo pouít vzorkovací mechanismus pro profiling. Nevıhodou byla ale pomìrnì obtínì definovatelná frekvence, jeliko bylo tøeba zvolit pøimìøenou granularitu vzorkù tak, aby stále poskytovala dostateènì prokazatelná data. 
+
+Podstatné zlepšení pøinesl koncept hardwarovıch vıkonnostních èítaèù (dále jen HPC), co jsou speciální registry procesoru, jejich jedinım úèelem je uchovávat poèet vybranıch hardwarovıch událostí. Takovou událostí mùe bıt napøíklad provedení instrukce, vıskyt cache-miss, nutnost pozastavit pipelining kvùli zamezení datovému hazardu (tzv. stalling), a další. Hardwarové vıkonnostní èítaèe jsou ale vdy závislé na konkrétním modelu, popø. øadì procesorù, a ne vdy je k dispozici stejná sada. Problém rozdílnosti tìchto sad èítaèù øeší modul obecnì oznaèovanı jako \emph{perf events} (konkrétnì u jádra GNU/Linux oznaèováno jako \emph{Linux Kernel Performance Events Subsystem}) v jádøe OS, kterı poskytuje jednotné rozhraní k pouívání HPC a pøidává další události související napøíklad s jádrem OS\cite{perf1}.
+
+Pøístup s HPC pouívá hardwarové pøerušení NMI. To je generováno pøi kadém pøeteèení nìkterého z èítaèù, jeho hodnotu sledujeme\cite{perf1}. NMI je specifické v tom, e je vyvoláváno i tehdy, kdy jsou pøerušení momentálnì zakázána. Taková situace nastává napøíklad pøímo pøi zpracování nìkterıch tzv. blokujících pøerušení. Je tedy moné provádìt profiling i jádra samotného.
+
+\subsection{Instrumentace}
+
+Dalším pøístupem je takzvaná \emph{instrumentace}. Ta spoèívá ve vloení speciálních profilovacích funkèních volání, která se starají o inkrementaci odpovídajících èítaèù volanıch a volajících funkcí, a zaznamenání aktuální pozice vykonávání programu na základnì hodnoty programového èítaèe.
+
+Tato volání mohou bıt buï integrována v èase kompilace pøímo kompilátorem (pokud to podporuje), ruènì v programovém kódu, nebo dokonce do ji zkompilovaného binárního spustitelného souboru.
+
+\subsection{Interpretace}
+
+Podstatnì rozdílnım pøístupem je pojetí zkompilovaného strojového kódu jako intermediate kód\footnote{meziformát urèenı pro zefektivnìní interpretace, lze napø. uvést \emph{bytecode} pouívanı v rámci Java Virtual Machine, nebo \emph{CIL} z prostøedí .NET}, kterı je interpretován nad vlastním virtuálním strojem\cite{grind2}. Tento pøístup dovoluje obalit kteroukoliv instrukci jakımkoliv vlastním kódem, ovšem za cenu vırazného zpomalení bìhu.
+
+\subsection{Událostní profiling}
+
+Pøíbuznım pøístupem instrumentaci je událostní profiling. Potenciál tohoto zpùsobu získávání dat byl vyuit a v oblasti interpretovanıch jazykù, kdy je pøímo ve virtiálním stroji, kterı námi psanı program interpretuje, pøítomno sledování urèitıch událostí, jako je napøíklad funkèní volání, alokace pamìti pro objekt daného typu a další.
+
+
+\newpage
+
+\chapter{Analıza dostupnıch nástrojù}
+
+Pro všechny bìné platformy, tedy Windows, Linux a MacOS, existuje pomìrnì rozsáhlı sortiment profilerù. V této kapitole budou struènì popsány ty, které se øadí mezi nejpouívanìjší.
+
+\section{perf}\label{subsec:perf}
+
+Perf je systém pro mìøení vıkonu na operaèních systémech zaloenıch na jádøe GNU/Linux verze 2.6 a vyšší. Vyuívá metodu vzorkování, a to na základì hardwarovıch vıkonnostních èítaèù.
+
+Nutnou podmínkou je tedy podpora v CPU pro vıkonnostní èítaèe, které nás zajímají. Tato podpora byla zavádìna ji od modelù procesoru Intel Pentium\cite{perf3} a stala se standardním prvkem pro všechny následující modely nejen firmy Intel. Všechny dnešní procesory architektury x86, x86-64 a dalších tedy tuto podmínku jistì splòují. Dále je nutné provozovat operaèní systém s implementovanou podporou HPC.
+
+\subsection*{Sbìr dat}\label{subsubsec:perf-collect}
+
+Samotnı profiling je provádìn pomocí zaznamenávání tìchto hardwarovì vyvolávanıch událostí pøes buffer v jádøe, a to buï do souboru (\texttt{perf record}) nebo pøímo na vıstup konzole (napø. \texttt{perf top}).
+
+V pøípadì pouití \texttt{perf record} jsou zachycené události zapisovány do souboru s implicitním názvem \texttt{perf.data} (lze zmìnit parametrem). Jedná se o binární soubor obsahující všechny poøízené vzorky. Z takového souboru lze posléze extrahovat rùzné pohledy - \texttt{perf report} spustí textové rozhraní pro navigaci v rámci seznamu funkcí øazenıch podle èetnosti vıskytu zkoumané události, \texttt{perf annotate} sestaví disassembly, ke kterému v pøípadì, e byly do binárního souboru zakompilovány debugovací symboly, pøipojí i namapovanı zdrojovı kód, \texttt{perf diff} pro sestavení rozdílu mezi dvìma reporty, a další.
+
+Ve vıstupním souboru je obsaena hlavièka a tøi sekce. První sekcí je sekce s atributy, obsahující metainformace o vzorcích, druhou sekce se seznamem sledovanıch událostí, a tøetí sekce se samotnımi vzorky nasbíranıch za bìhu\cite{perf2}.
+
+\subsection*{Vıhody a nevıhody}
+
+Velkou vıhodou nástroje \emph{perf} je právì ve vyuívání hardwarové podpory pro zjišování vıkonu, a interfacing s jádrem, které øeší rozdílnost øešení a sady èítaèù v CPU samotném. Zkoumanı proces pak není nijak vıraznì zpomalen oproti jeho normálnímu bìhu, jeliko není nijak mìnìn instrukèní tok programu samotného. Další vıhodou je bezesporu sortiment velièin, které je moné zkoumat. Kromì \uv{bìného} zkoumání tráveného èasu provádìním specifickıch úsekù kódu lze pozorovat i moné pøíèiny toho, proè je namìøenı èas tak dlouhı.
+
+Nevıhoda mùe bıt skryta ve vıše zmínìném vzorkování. Jeliko je poøízen vzorek v rámci diskrétních èasovıch úsekù, mùe se stát, e nìjakı vıkyv mùe uniknout. Vzhledem k tomu, e takové vıkyvy vìtšinou trvají mnohem déle, ne je perioda vzorkování, není pravdìpodobné, e bychom nepozorovali dùleitı úsek z hlediska vıkonu. Problémy vzorkování v oblasti \emph{perf\_events} lze pøipodobnit k problémùm vzorkování kdekoliv jinde - napøíklad vzorkování prùbìhu matematické funkce s velkımi a rychlımi vıkyvy v prùbìhu nebo vzorkování prùbìhu audio signálu pøi pøevodu do digitální formy. Další nevıhodou je nutnost mít CPU, kterı podporuje hardwarové vıkonnostní èítaèe, ale ty jsou v dnešní dobì standardem ve všech moderních procesorech.
+
+
+
+
+\section{gprof}\label{subsec:gprof}
+
+Gprof je nástroj rozdìlenı na dvì èásti - èást v kompilátoru a èást pro interpretaci dat. V podstatì zaujímá pøesnì opaèné postavení oproti nástroji \emph{perf}. Namísto neinvazivního pozorování procesu na úrovni jádra OS a snímkování událostí z ji dostupnıch zdrojù (HPC) je pouita metoda instrumentace. Ta je metodou invazivní, tedy pøímo mìní instrukèní tok pøi vstupu do bloku instrukcí náleícího kadé funkci. Z toho plyne znaèné zpomalení bìhu programu.
+
+Jeliko \emph{gprof} nevyuívá pøímo ádnou hardwarovou podporu, jsou prerekvizity èistì softwarové. Pro monost profilovat tímto nástrojem je nutné mít nainstalovanı kompilátor, kterı dovede vloit potøebnou posloupnost instrukcí do kadé z funkcí. Pøíkladem takového kompilátoru je \emph{gcc}. Na vìtšinì linuxovıch distribucí je zároveò tøeba doinstalovat balík \emph{binutils}, kde je obsaen samotnı nástroj pro intepretaci vıstupu generovaného vloenımi instrukcemi.
+
+Dále je nutné kompilátor instruovat, aby profilovací volání do programu zakompiloval, a to zpravidla pomocí nìjakého pøepínaèe. Nástroj \emph{gcc} tato volání integruje pøi kompilaci s pøepínaèem \texttt{-pg}.
+
+\subsection*{Sbìr dat}
+
+Jak ji bylo zmínìno, v èase kompilace je do instrukèních blokù funkcí zapravena èást kódu, která se stará o zaznamenání volání funkce a o mìøení èasu stráveného uvnitø funkce v jednom volání. To v pøípadì nástroje \emph{gprof} zaruèují dvì funkce - \texttt{mcount()}, která zaznamenává volanou a volající funkci, a \texttt{profil()}, co je systémové volání pro zjištìní hodnoty programového èítaèe a jeho zaznamenání do tabulky v pamìti\cite{gprof2}. Toto systémové volání ale nemusí bıt v jádøe implementované, a proto se jeho absence dá do jisté míry substituovat pomocí signálù zasílanıch procesu.
+
+Funkce \texttt{mcount()} je zodpovìdná za evidenci poètu volání kadé funkce. Díky zaznamenání volané i volající funkce v podobì programovıch èítaèù je posléze moné zobrazit celı strom volání, pøípadnì vymezit vìtev, která je z hlediska vıkonu kritická.
+
+Funkce \texttt{profil()} nemusí bıt v daném OS dostupná. V pøípadì, e dostupná je, je typicky volána v urèitém èasovém intervalu. Kadé volání zjistí hodnotu programového èítaèe a inkrementuje hodnotu poèítadla na odpovídající adrese v pamìti.
+
+Pokud funkce \texttt{profil()} dostupná není, je vyuito slueb èasovaèù v jádøe OS k zasílání signálù zkoumanému procesu, kam je dodateènì zakompilována i funkce, která tento signál obstarává. Vısledek zpracování tohoto signálu je v podstatì identickı s vısledkem volání funkce \texttt{profil()}, jen v podstatnì delším èase a s monım zpodìním kvùli reii pøidané na generování a obstarávání signálu.
+
+Po spuštìní aplikace zkompilované se zapravením vıše uvedenıch funkcí, je generován soubor s implicitním názvem \texttt{gmon.out} (popø. \texttt{jmenoprogramu.out}), kterı obsahuje veškerá poèítadla zaznamenaná po èas bìhu. K jejich interpretaci je moné pouít pøíkaz \texttt{gprof}.
+
+Tento soubor je binární, a kromì hlavièky mùe obsahovat a tøi typy záznamù. Prvním záznamem je histogramovı, kterı je zaznemenán voláním \texttt{profil()}, druhı je takzvanı \emph{call-graph record}, obsahující informaci o funkèním volání zaznamenanım pomocí \texttt{mcount()}. Tøetí záznam, tzv. \emph{basic-block record}, mùe nahradit záznam histogramovı, a to v pøípadì, e byl pouit \emph{line-by-line} mód, tedy speciální reim získávání dat, kterı spojuje vzorkovací volání ne s funkcemi, ale s jednotlivımi øádky zdrojového kódu. Tato funkcionalita ale ji v novìjších verzích nástroje \emph{gprof} není obsaena\cite{gprof1}.
+
+\subsection*{Vıhody a nevıhody}
+
+Podstatnou vıhodou je prakticky ádná pøímá závislost na hardware. Jedinou nutnou závislostí zùstává podpora v kompilátoru, kterı je pro danı systém dostupnı. Dalším pozitivem je, e jsou zaznamenány veškerá volání funkcí (krom tìch, které jsou kompilátorem inlinovány\footnote{nahrazení volání funkce pøímo blokem pøíkazù, kterı funkce vykonává} v rámci optimalizací).
+
+Nevıhod je ale podstatnì více. První znatelnou nevıhodou je zpomalení bìhu programu, co mùe bıt fatální pro velké mnoství pøípadù. Tím odpadá monost pouít \emph{gprof} pro vysokozátìové systémy, kdy se vıkonnostní problém objeví a pøi dosaení urèité meze zátìe. Další podstatnou nevıhodou je nutnost mít program zkompilovanı se zapravenımi funkcemi, tedy nelze profiling nijak \uv{vypnout} bez provedení nové kompilace.
+
+
+
+
+\section{OProfile}
+
+Sada nástrojù OProfile je pomìrnì starım zpùsobem profilování na systémech zaloenıch na GNU/Linux, ale dodnes je udrována a adaptována na nové technologie. Pøed verzí jádra Linux 2.6 ji bylo v rámci OProfile moné vyuívat podporu hardwarovıch èítaèù, a to pouitím specifického driveru, kterı je v podstatì velmi podobnı souèasné implementaci v rámci Linux Kernel Performance Events subsystému (zmínìného v kapitole \ref{subsec:sampling}). Dále bylo nutné mít zavedenı daemon, obstarávající vzorkování hodnot vıkonnostních èítaèù, kterı je opìt podobnı ji zmínìnému systému \emph{perf events}.
+
+S implementací subsystému pro hardwarové èítaèe a integrací \emph{perf events} do samotného jádra OS odpadla nutnost udrování vlastního vıvoje jejich substitucí, a bylo moné se soustøedit pøímo na vıvoj samotného profileru.
+
+Nástroj OProfile je nutné stáhnout v podobì zdrojovıch souborù buï jako archiv, nebo pomocí verzovacího systému \emph{git}. Staenı zdrojovı kód je tøeba pøeloit, je tedy nutné mít nainstalovanou sadu kompilátorù \emph{gcc} a pro potøeby pøeloení ještì pøítomné závislosti. Další poadavky se mohou lišit podle verze a distribuce operaèního systému, jejich pøítomnost je kontrolována standardním \texttt{configure} skriptem.
+
+\subsection*{Sbìr dat}
+
+Jedná se o vzorkovací profiler, podobnì jako nástroj \emph{perf}. V souèasné dobì oba tyto profilery dokonce vyuívají stejnı modul v jádøe OS.
+
+Vıstupem je ale celı adresáø \texttt{oprofile\_data}, kde jsou uloeny profilovací vzorky (podadresáø \texttt{samples}), logovací vıstupy a další vìci související s profilingovım sezením. Soubory se vzorky jsou binárního typu a obsahují pouze páry offset:poèet, kde offset je programovı èítaè, a poèet je mnoství vzorkù, které bylo na tomto offsetu zaznamenáno. Kadı soubor se vzorky mùe obsahovat vzorky jiného druhu - v závislosti na velièinì, kterou sledujeme. To je rozlišeno podle struktury podadresáøù a názvu souboru samotného.
+
+Vıstup lze interpretovat buï pøíkazem \texttt{opreport} pro vıstup standardní, nebo pøíkazem \texttt{opgprof}, jeho vıstup je pøizpùsoben, aby vypadal shodnì s vıstupem nástroje \emph{gprof}.
+
+\subsection*{Vıhody a nevıhody}
+
+Vìtšinu vıhod má tento nástroj shodnou s vıhodami nástroje \emph{perf}. Oproti nìmu ale disponuje moností formátovat vıstup do stejné podoby jako nástroj \emph{gprof}. Co se podporovanıch funkcí tıèe, dá se øíci, e nástroje \emph{OProfile} a \emph{perf} jsou zhruba na stejné úrovni a liší se pouze drobnostmi.
+
+Nevıhody jsou opìt pomìrnì stejné, jen nástroj \emph{OProfile} není obsaen mezi standardními balíèky vìtšiny distribucí a musí se dodateènì pøekládat a instalovat ruènì.
+
+
+
+
+\section{Callgrind a Cachegrind}
+
+Tyto dva nástroje jsou pøítomny v jednom velkém balíku vıvojáøskıch ladících nástrojù \emph{valgrind} pro systémy unixového typu. Pod jednou sekcí jsou uvedeny proto, e funkcionalita nástroje \emph{cachegrind}, tedy profileru zamìøenım na efektivní vyuití CPU cache, je v této dobì ve velké míøe ji obsaena i v nástroji \emph{callgrind}, kterı se primárnì staral pouze o statistiku volání funkcí a generování stromù volání.
+
+Prvním kritériem pro provozování tìchto nástrojù je samozøejmì operaèní systém - tím mùe bıt kterıkoliv z podporovanıch OS unixového typu, tedy veškeré distribuce GNU/Linux na vìtšinì pouívanıch architektur, Solaris, Android a Darwin (od verze 10.9 i MacOS X)\cite{grind1}. Dále je tøeba mít nainstalovanı odpovídající balíèek \emph{valgrind}, kterı obsahuje všechny pøidruené nástroje, mezi kterımi se objevuje právì i \emph{callgrind} a \emph{cachegrind}.
+
+\subsection*{Sbìr dat}
+
+Narozdíl od profilerù z pøedchozích kapitol, \emph{callgrind} a \emph{cachegrind} (dále pouze souhrnnì \emph{callgrind}) pouívají trochu nezvyklı zpùsob získávání vıkonnostních dat - interpretací. To dovoluje kadou instrukci obalit takøka libovolnım kódem, kterı se v pøípadì nástroje \emph{callgrind} stará o poèítání funkèních volání, cache-miss nad simulovanou cache, poèítání pøístupù do pamìti a dalších událostí. Skuteènost, e je kód nejprve interpretován, bohuel bìh programu znaènì zpomaluje.
+
+Vısledkem je soubor \texttt{callgrind.out.PID}, kde \texttt{PID} je nahrazeno identifikátorem zkoumaného procesu. Jedná se o soubor, jeho obsahem je textová reprezentace záznamù existujících funkcí a všech funkcí z nich volanıch vèetnì èasù (zde oznaèenıch jako \uv{cena}, jeliko vzhledem ke zpomalení generovaném interpretací nelze porovnávat samotné èasy) a pozic, ze kterıch byly volány. V hlavièce souboru se navíc nachází vıèet všech zkoumanıch velièin, které jsou v souboru obsaeny\cite{grind3}.
+
+Vıstup lze interpretovat pouitím pøíkazu \texttt{callgrind\_annotate}, kterı pøi pøipojení cesty ke zdrojovım kódùm generuje vıstup ve formì kódu, kde je ke kadé øádce pøipsán poèet vıskytù zkoumané události.
+
+\subsection*{Vıhody a nevıhody}
+
+Vıhodou z hlediska funkcionality je rozhodnì zpùsob, jakım nástroj sbírá data. Je zaruèeno, e pokud existuje nìjaké slabé místo, a je nástrojem správnì interpretováno, tak nezmeškáme jeho prùchod, jako tomu mohlo bıt u nástrojù provádìjících vzorkování. Dále je velkou vıhodou podpora na pomìrnì široké škále operaèních systémù.
+
+Velkou nevıhodou je ale zpomalení, které je vlivem interpretování kódu generováno. Pùvodnì strojovı kód toti nikdy není spuštìn pøímo, ale pøes další vrstvu, která umoòuje sbìr dat. Další nevıhodou je, e je nutné internì urèitı sortiment hardwarové funkcionality simulovat, aby došlo k detekci událostí v tìchto místech. Typicky jde napøíklad o vıskyt cache-miss, kdy musí \emph{callgrind} simulovat cache na úrovni programového kódu. Pokud bychom se mohli spoléhat na implementaci s identickım fungováním, pak by o nevıhodu nešlo. Existuje ale velké mnoství rozdílnıch architektur, a prakticky kadá mùe danou funkcionalitu implementovat jinak. Proto se musíme spokojit s tím, e je tato simulace sice velmi blízko oèekávanému modelu, ale nejde o její identickou implementaci.
+
+
+
+
+\section{DTrace}
+
+DTrace je framework urèenı obecnì pro trasování a sledování veškerıch akcí, které samotné jádro nebo zkoumanı program vykonává. Je dostupnı pro OS Solaris, MacOS X, FreeBSD a jim pøíbuzné systémy.
+
+\subsection*{Sbìr dat}
+
+Veškerı sbìr dat je uskuteènìn definicí filtrù a událostí v programovacím jazyce \emph{D}, co je speciální jazyk vyvinutı pro pouití v rámci frameworku \emph{DTrace}. Jsme schopni sledovat události jako jsou syscally, ètení nebo zápis na disk, pøípadnì vyuívat ji zmínìnıch hardwarovıch vıkonnostních èítaèù. Pro potøeby profilingu mùeme dále napøíklad snímkovat zásobník specifického procesu na urèité frekvenci pøíkazem
+
+\lstset{escapechar=@,style=custombash}
+\begin{lstlisting}
+dtrace -n 'profile-99 /pid == 189 && arg1/ { @[ustack()] = count(); }'
+\end{lstlisting}
+
+Vıstupem je pouze textová reprezentace zaznamenanıch hodnot na konzoli nebo do souboru.
+
+\subsection*{Vıhody a nevıhody}
+
+Vıhodou je bezesporu to, e je \emph{DTrace} velmi obecnım a dynamickım nástrojem, kterı oplıvá vlastním programovacím jazykem. Mùeme si tak snáze pøizpùsobit prùbìh trasování specifickım potøebám bez nutnosti pouití externích nástrojù. Také je moné sledovat širokou škálu událostí, systémovıch velièin a pouívat hardwarovou podporu sledování vıkonu.
+
+Nevıhodou je hlavnì sloitost. Bez znalosti pouívaného jazyka nelze vyuívat jeho potenciál v plné míøe. Spousty uivatelù \emph{DTrace} se proto soustøedí pouze na pouívání skriptù, které ji byly v minulosti napsány a pouívány za specifickım úèelem.
+
+
+
+
+\section{Visual Studio Performance Profiling}
+
+V rámci vıvojového prostøedí Microsoft Visual Studio je od verze 2010 pøitomen i nástroj pro sledování vıkonu - Visual Studio Performance Profiling (dále jen \emph{VSPerf}). Principielnì nabízí monost mìøit vıkon vyuitím hardwarovıch vıkonnostních èítaèù a snímkováním zásobníku (mód \uv{CPU Sampling}, ekvivalentní k nástroji \emph{perf}), dále pomocí zakompilovaného kódu a poèítadel zkoumat urèité velièiny zblízka (mód \uv{Instrumentation}, principem ekvivalentní k nástroji \emph{gprof}), pokud je aplikace psána pro .NET Framework, pak poskytuje monost sledovat práci s pamìtí, identifikovat místa s nejvìtší èetností poadavkù o alokaci a sledovat funkci garbagge collectoru. Také je pøítomen mód pro detekování synchronizaèních problémù, které vyúsují k podstatnému sníení vıkonu (pøíliš dlouhá kritická sekce, apod.).
+
+Pro pouívání tìchto nástrojù je nutné mít nainstalován OS MS Windows ve verzi XP nebo novìjší. Dále je tøeba stáhnout a nainstalovat Microsoft Visual Studio alespoò ve vezi 2010.
+
+\subsection*{Sbìr dat}
+
+Metody sbìru dat byly popsány ji v kapitolách \ref{subsec:perf} (CPU sampling) a \ref{subsec:gprof} (Instrumentation). Metoda pouitá ve sledování správy pamìti v .NET aplikacích se principielnì blíí nástrojùm sady \emph{valgrind}, jen s tím rozdílem, e se v tomto pøípadì jedná o interpretovanı intermediate kód i bez pouití dalšího nástroje.
+
+Vıstupem je soubor se sesbíranımi daty, urèenı k prohlíení v rámci nástroje Visual Studio. Ten dovede vizualizovat interaktivní strom volání, vyhodnotit tzv. \uv{Hot Path}, tedy vıkonnostnì kritickou vìtev stromu volání, vyhodnotit funkce, které vykonáváním vlastního kódu (tedy bez volání ostatních funkcí) zabíraly nejvìtší procento èasu a další, spíše doplòkové funkce. Formát vıstupního souboru má uzavøenou specifikaci. Moné je ale provést export zformátovanıch dat do formátù CSV nebo XML, které obsahují potøebné údaje pro zrekonstruování pohledù. Tento export je ale ztrátovı, a tak neumoòuje na základì obsaenıch dat vytvoøit pohledy jiného charakteru.
+
+\subsection*{Vıhody a nevıhody}
+
+Mezi vıhody patøí zejména integrace do jednoho z nejpouívanìjších IDE na OS MS Windows. Tím, e je implementace obstarána pøímo na úrovni tohoto prostøedí, je zaruèena maximální kompatibilita, a lze pøímo vyuívat funkcí prostøedí. Další vıhodou je monost vyuít rùzné pøístupy ke sbìru dat v závislosti na tom, co zkoumáme, a to beze zmìny zpùsobu vizualizace.
+
+Nevıhodou je nemonost pouít profilingovı nástroj bez nutnosti mít nainstalované IDE. Je sice moné spouštìt profiling z pøíkazové øádky, ale stále je potøeba mít k dispozici zbytek vıvojového prostøedí. To i v minimální nutné instalaci zabírá nìkolik stovek megabajtù a jednotek gigabajtù v závislosti na verzi a edici.
+
+
+
+
+\section{Very Sleepy}
+
+Very Sleepy je jednoduchı profiler pro OS Windows, kterı vzniknul jako klon staršího, dnes ji nevyvíjeného profileru Sleepy. Jedná se o neinvazivní profiler, kterı podobnì jako ostatní profilery z této kategorie pouze sleduje v pravidelnıch intervalech zásobník zkoumaného procesu (popø. analogicky zásobníky všech vláken daného procesu) a na základì generovaného stromu volání tvoøí statistiku.
+
+Pro pouívání je nutné mít nainstalován OS Windows verze XP a vyšší. Poté staèí mít pouze staenı profiler \emph{Very Sleepy}, jeho balíèek obsahuje vše potøebné.
+
+\subsection*{Sbìr dat}
+
+Jak bylo uvedeno, jedná se o neinvazivní profiler, kterı ve velmi krátkıch pravidelnıch intervalech vzorkuje zásobník, extrahuje údaje o funkèním volání a inkrementuje èítaèe u funkcí, které se v tomto vzorku nachází. Zároveò na základì programového èítaèe identifikuje i instrukci, u které také provede inkrementaci èítaèe. Metrikou je zde tedy \uv{poèet vıskytù}, kterı by mìl bıt snadno pøeveditelnı na èas, kterı je v dané funkci tráven.
+
+Vıstupem je primárnì pouze vizualizace v podobì pøehledu volanıch funkcí a procenty èasu tráveného jejich provádìním. Celé profilingové sezení je také moné uloit do souboru binárního typu, pøípadnì exportovat do formátu CSV.
+
+\subsection*{Vıhody a nevıhody}
+
+Vıhodou je jistì to, e jde o velmi malı nástroj. Není tøeba ádnıch dodateènıch knihoven, ani velkıch balíkù závislostí.
+
+Oproti zkoumanım profilerùm má ale znaènì více nevıhod. Jeliko jde opìt o profiler, kterı provádí vzorkování, objevuje se zde znovu monost, e nìjakou skuteènost pøehlédne. Také má implementován pouze základní pohled, jeho obsahem jsou pouze procenta tráveného èasu v jednotlivıch funkcích. Mimo to obsahuje pomìrnì velké mnoství nedodìlanıch, nedoladìnıch funkcí, co má za pøíèinu jistou nestabilitu.
+
+Pro profiling menších aplikací za úèelem získat orientaèní pøehled o monıch slabıch místech se ale hodit mùe.
+
+
+
+
+
+\section{RotateRight Zoom}
+
+Tato sada nástrojù je urèena pro operaèní systémy zaloené na GNU/Linux a MacOS X. Profiler funguje na ji popsaném principu vzorkování, obdobnì jako tøeba nástroje \emph{perf} nebo \emph{OProfile}. Má ale nìkolik vybranıch odlišností v doplòovıch funkcích.
+
+Od ostatních vıše uvedenıch nástrojù se liší hlavnì tím, e nejde pouze o profiler, ale celou sadu nástrojù, obsahující napøíklad profiling server, kterı dovoluje pøes sí vzdálenì zpøístupnit rozhraní k profilování. Není tedy nutné mít pro pokroèilou vizualizaci vısledkù nainstalované grafické prostøedí, co je vıhodou zejména pøi profilování na vzdálenıch serverech, kde by bylo jinak grafické prostøedí zbyteèné. Také obsahuje statickı analyzér kódu, take je schopen do jisté míry i bez profilování urèit potenciální slabá místa.
+
+\section{Shrnutí}
+
+Analyzované nástroje implementují tøi rùzné zpùsoby sbìru vıkonnostních dat (shrnuto v tabulce \ref{table:profmethods}). Prvním je vzorkování, tedy neinvazivní snímkování zásobníku a registrù, které sice vıraznì nezpomaluje bìh zkoumaného programu, ale nemusí poskytovat stoprocentnì pøesná data. Druhım je instrumentace, èili zakompilování diagnostickıch volání pøímo do programu, co zpomaluje bìh podstatnì více, ale poskytuje to èasto velmi pøesnı pøehled o provádìní kadého funkèního volání - u tìchto nástrojù musíme operace konkretizovat na volání funkcí (metod). Tøetím zpùsobem je interpretování spustitelného souboru \uv{virtuálním strojem}, kde mùeme zkoumat prakticky libovolnou velièinu, ale bìh programu je zpomalen za produkènì únosnou mez.
+
+Vıraznì se tedy liší situace, kdy je kterı nástroj vhodné pouít. Nemusí však jít pouze o rozdílné druhy software - mùeme zkoumat stejnı software, jen z jiného úhlu pohledu. Z tohoto dùvodu je tøeba, aby bylo moné nasbírané informace vizualizovat ideálnì v jednotné formì. To by mimo jiné dovolilo vıvojáøi porovnat vısledky nad normalizovanım pohledem, a tedy by mohlo vést ke spolehlivìjšímu odhalení bottlenecku.
+
+V pøípadì všech headless\footnote{systémy bez nainstalovaného grafického prostøedí, èasto pouze se vzdálenım terminálovım pøístupem} systémù mùe bıt problémem i to, e pokud poadujeme pokroèilejší vizualizaèní techniky, je nutné mít nainstalované grafické prostøedí, co není na vìtšinì serverù obvyklé. Mimo to lze sice vygenerovat nìjaké statické vıstupy (napø. ve formátu SVG), ale ty se èasto liší od rùznıch nástrojù - tedy buï úplnì chybí, nebo nemají jednotnou formu.
+
+Dalším zøejmım problémem je dostupnost napøíè rùznımi operaèními systémy (znázornìno v tabulce \ref{table:profoss}). Tento problém sice nelze efektivnì vyøešit, ale je moné poskytnout takovou vizualizaci dat, která na operaèním systému závislá nebude.
+
+Tìmito problémy se budou zaobírat následující kapitoly - bude navren pøenositelnı nástroj, kterı bude schopen naèíst vıstupní formáty profilerù, analyzovat je, a pomocí známıch vizualizaèních technik poskytnout ucelenı pohled, jeho dostupnost nebude podmínìna platformou. Pro potøeby této práce bude nástroj analyzovat pouze vıstupy nejpouívanìjších nástrojù pod GNU/Linux, tedy nástroje \emph{perf} a \emph{gprof}. Bude ale navren tak, aby bylo moné kdykoliv rozšíøit podporu i pro jinı formát pouze pøipojením modulu.
+
+\begin{table}[h]
+    \begin{center}
+        \def\arraystretch{1.5}
+        \begin{tabular}{ c || c | c | c }
+              ~ & vzorkování & instrumentace & interpretace \\
+            \hline
+            \hline
+              perf & \tick & \tick & \tickcross \\
+              gprof & \tickcross & \tick & \tickcross \\
+              OProfile & \tick & \tickcross & \tickcross \\
+              Callgrind & \tickcross & \tickcross & \tick \\
+              DTrace & \tick & \tickcross & \tickcross \\
+              VSPerf & \tick & \tick & \tickcross \\
+              Very Sleepy & \tick & \tickcross & \tickcross \\
+              RotateRight Zoom & \tick & \tickcross & \tickcross \\
+            \end{tabular}
+        \caption{Tabulka zpùsobu sbìru dat}\label{table:profmethods}
+    \end{center}
+\end{table}
+
+\begin{table}[h]
+    \begin{center}
+        \def\arraystretch{1.5}
+        \begin{tabular}{ c || c | c | c }
+              ~ & Windows & GNU/Linux & MacOS \\
+            \hline
+            \hline
+              perf & \tickcross & \tick & \tickcross \\
+              gprof & \tickcross & \tick & \tick \\
+              OProfile & \tickcross & \tick & \tickcross \\
+              Callgrind & \tickcross & \tick & \tick \\
+              DTrace & \tickcross & \tickcross & \tick \\
+              VSPerf & \tick & \tickcross & \tickcross \\
+              Very Sleepy & \tick & \tickcross & \tickcross \\
+              RotateRight Zoom & \tickcross  & \tick & \tick \\
+            \end{tabular}
+        \caption{Tabulka podpory profilingovıch nástrojù na nejpouívanìjších platformách}\label{table:profoss}
+    \end{center}
+\end{table}
+
+
+
+
+
+
+
+\newpage
+
+\chapter{Analıza vizualizaèních technik}
+
+Shromádìná data profilingovımi nástroji je nutné pøevést do formy, které bude vıvojáø rozumìt, a bude na základì ní schopnı provést odpovídající zmìny v kódu. Jeliko jsme pouili abstrakci operace na funkèní volání, budou zejména konkrétní funkce subjektem zkoumání.
+
+Pøed analyzováním jednotlivıch pohledù je tøeba nadefinovat dva pojmy - \emph{inkluzivní èas} a \emph{exkluzivní èas}. Èas trávenı ve funkci je toti nutné rozlišit na èást, která byla strávena pouze v rámci instrukèního toku dané funkce, a èást, která byla strávena provádìním funkcí z této funkce volanıch. Lze snadno vyvodit, e \emph{exkluzivní èas} udává tu èást, která byla trávena pouze provádìním zkoumané funkce (exkludovali jsme èas volanıch funkcí), a \emph{inkluzivní èas} udává celkovı èas vèetnì èasu stráveném ve volanıch funkcích.
+
+\section{Flat view}
+
+Flat view, jinak nazıvanı i \uv{function view}, je prostı seznam funkcí s èetností jejich volání, inkluzivním a exkluzivním èasem (popø. vzorky). Jedná se o nejjednodušší pohled, kterı lze vygenerovat, a èasto je dostaèující pro detekci monıch bottleneckù. Postrádá ale kontext. Napøíklad nelze vydedukovat pomìr poètu volání a nároènosti funkce. Nelze tedy pøímo zjistit, zdali je tøeba optimalizovat poèet volání, nebo tìlo funkce.
+
+Z tohoto pohledu tedy lze vydedukovat pouze základní problémy a hodí se pouze pro jednoduché programy bez vìtšího mnoství funkcí. V takovıch pøípadech lze èasto kontext vypustit, jeliko je zøejmé, odkud je která funkce volaná.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/prof_flatview.png}
+    \caption{Flat view generovanı nástrojem VSPerf}
+    \label{obr:flatview}
+\end{figure}
+
+\newpage
+
+\section{Hierarchical view}
+
+Hierarchickı pohled (také \emph{call tree}, \emph{strom volání}) pøidává kontext do pøedchozího pøípadu. Konkrétnì jde o dedukování, která funkce volala kterou, tedy je moné snáze identifikovat monı vıkonnostní problém, pokud není pøímo ve volané funkci, ale v kontextu okolo.
+
+Tento pohled vıraznì rozšiøuje mnoinu identifikovatelnıch problémù. Pøíkladem problému, kterı odhalí tento pohled navíc oproti \emph{flat view}, je napøíklad ten, kdy máme pomìrnì nároènou funkci, která je volaná z mnoha míst v celém programu. Pokud je ale nìkde chybnì volána èastìji, ne je nezbytnì nutné, bude velké procento volání (popø. vzorkù, tráveného èasu) zvırazòovat místo problému.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/prof_calltree.png}
+    \caption{Hierarchical view generovanı nástrojem VSPerf}
+    \label{obr:hieview}
+\end{figure}
+
+\section{Graph view}
+
+Grafovı pohled je grafickım vylepšením pohledu hierarchického. Vıhodou je monost vidìt všechny vazby naráz, bez duplikace jednotlivıch funkcí v nìkolika vìtvích stromu.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[interpolate,width=0.5\textwidth]{img/prof_graph.png}
+    \caption{Graph view s vyznaèenou \emph{hot path}, Zdroj: \url{http://claudiovz.github.io/scipy-lecture-notes-ES/advanced/optimizing/index.html} }
+    \label{obr:gview}
+\end{figure}
+
+V hierarchickém pohledu toti mohla nastat situace, kdy se v celém stromu jedna funkce vyskytuje na více místech, a to tehdy, pokud je volána z nìkolika jinıch funkcí. V grafovém pohledu jsou všechny duplikáty slouèeny do jednoho uzlu a z uzlù pøedstavujících volající funkce jsou do nìj vedeny hrany.
+
+\section{Object-method view}
+
+V podstatì se jedná o \emph{flat view}, ovšem v modifikaci pro programy psané v objektovì orientovaném jazyce. Poloky seznamu (zde metody), jsou sdrueny do skupin podle náleitosti tøídì. Pokud je program správnì dekomponován, lze pomocí tohoto pohledu identifikovat tøídu, její metody pøedstavují èasovì nejnároènìjší operace.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[interpolate,width=0.8\textwidth]{img/prof_objectview.png}
+    \caption{Object-method view, Zdroj: \url{http://kprof.sourceforge.net/} }
+    \label{obr:objview}
+\end{figure}
+
+Vıhoda tohoto pohledu mùe spoèívat napøíklad v pouití pro tımovì vyvíjenı produkt, kde kadou komponentu mìl na starosti jinı vıvojáø. Lze tedy snadno identifikovat osobu zodpovìdnou za pomalı bìh. Další vlastnosti tento pohled pøebírá od \emph{flat view}.
+
+\section{Flame graph}
+
+Tento pohled lze snadno generovat z pohledu hierarchického. Ve své podstatì jde pouze o expandovanı hierarchickı pohled, kterı je uspoøádán odspoda (koøen) nahoru (listy). Znaènou vıhodou je škálování jednotlivıch poloek podle procentuálních hodnot zkoumané velièiny - tráveného èasu (zde inkluzivního). Koøen zaujímá $100\%$ šíøky grafu, a veškeré volané funkce jsou o úroveò vıše, škálované relativnì vùèi celkovému exkluzivnímu èasu volající funkce a jsou vyneseny tak, aby zaujímaly pøesnì takovou procentuální šíøku.
+
+Tento druh vizualizace lze povaovat za pøínosnı zejména z toho dùvodu, e znáznoròuje pomìrnı strávenı èas vùèi všem ostatním volanım funkcím. Tyto pomìry nemusí bıt z hierarchického pohledu vidìt. Také tento pohled vıznamnì redukuje mnoství dat a efektivnì eliminuje nevıznamné poloky - ty mají ve vısledném grafu minimální šíøku.
+
+Takovı graf ale vzhledem ke své obsáhlosti musí bıt buï dostateènì velkı, nebo interaktivní. Interaktivitu si mùeme pøedstavit napøíklad moností rozkliknout funkci, která je pro nás zajímavá - poté se zmìní pomìry šíøek, vybraná funkce tvoøí vıchozí bod se $100\%$ šíøkou a všechny ostatní jí volané funkce škálujou podle ní.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/prof_flame.png}
+    \caption{Flame graph, Zdroj: \url{http://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html} }
+    \label{obr:flamegr}
+\end{figure}
+
+\subsection{Detailed graph}
+
+Variací \emph{flame graph} pohledu je tzv. detailní pohled. Ten pouze zuuje celkovı pohled na vıbìr tøech po sobì jdoucích úrovní. U takového pohledu je tedy nutná jistá interaktivita, která spoèívá v monosti procházet jednotlivé úrovnì klikáním. Dále mùe bıt pøipojen vıpis programového kódu se zvıraznìnımi èástmi, které jsou z hlediska vıkonu vıznamné.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/prof_detailgraph.png}
+    \caption{Detailed view generovanı nástrojem VSPerf}
+    \label{obr:detailview}
+\end{figure}
+
+\section {Heat maps}
+
+Heat mapy nejsou v souèasné dobì pøíliš rozšíøenou technikou vizualizace profilingovıch dat, ale je moné je pro urèité body zájmu aplikovat. Oproti pøedchozím zpùsobùm dovoluje zobrazovat do urèité míry i trojrozmìrná data. Vodorovná osa znázoròuje tok èasu, svislá osa zkoumané body zájmu, v pøípadì profilingu jde o funkce (metody). Osa èasu je èasto diskretizovaná na èasové úseky vìtší, ne je snímkovací perioda, jeliko je nutné za tento interval nasbírat takovı poèet vıskytù zkoumaného jevu (programovı èítaè ukazuje na instrukci z instrukèního toku funkce), aby bylo moné rozlišit vıznamnost.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/prof_histogram.png}
+    \caption{Histogram èetností dob odezvy pevného disku pøi ètení a zápisu, Zdroj: \url{http://www.brendangregg.com/HeatMaps/latency.html}}
+    \label{obr:heathistoview}
+\end{figure}
+
+Na obrázku \ref{obr:heatview} je vidìt heat mapa odezvy pevného disku, co je momentálnì jeden z hlavních pøípadù pouití této techniky. Vodorovná èasová osa je rozdìlena na diskrétní úseky po 1 vteøinì a v rámci tohoto èasového úseku bylo provedeno nìkolik stovek ètení. Po uplynulé vteøinì byl z èasù odezvy vytvoøen histogram èetností (obrázek \ref{obr:heathistoview}), vıšky sloupcù byly pøevedeny na intenzitu barvy, a do vısledného grafu byl takto obarvenı sloupec vloen ve vertikálním smìru.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=0.8\textwidth]{img/prof_heatmap.png}
+    \caption{Heat map, Zdroj: \url{http://www.brendangregg.com/HeatMaps/latency.html}}
+    \label{obr:heatview}
+\end{figure}
+
+Vıhodou takového grafu mùe bıt zejména viditelnost tendence. Na základì takto viditelnıch dat je moné posléze odhadovat, jak se bude program chovat pøi násobnì vìtší zátìi. Urèité aplikace toti nedovolují provádìt profiling pøi vysoké zátìi a to zejména kvùli zpomalení, které profilery zpùsobují. Pøíkladem mohou bıt veškeré sluby, u kterıch je ádoucí minimální odezva - kromì realtime systémù lze uvést napøíklad herní servery pro masovì hrané hry, kde mùe vyšší odezva znamenat zhoršení herního záitku.
+
+\section{Shrnutí}
+
+Zpùsobù vizualizace existuje pomìrnì velké mnoství, z velké èásti jde ale o modifikaci nebo kombinaci zpùsobù vıše uvedenıch. Kadı pohled zvırazòuje trochu jinou informaci, pøièem záleí vdy na konkrétním pøípadu uití, jak je interpretována. Proto je dùleité mít k dispozici co moná nejširší škálu rùznıch pohledù.
+
+Také je vhodné øešit, jakım zpùsobem, tedy pomocí jakého \uv{média} bude vısledek pøedán vıvojáøi. Velká èást nástrojù poskytuje vısledky v textové formì, èili snadno zobrazitelné kteroukoliv konzolí. Nìkteré nástroje obsahují vlastní GUI, které je ovšem èasto závislé na platformì nebo grafickém prostøedí. Dále malá skupina nástrojù poskytuje monost exportovat vısledek do nìjakého známého obrazového formátu - typicky PNG nebo SVG.
+
+V rámci této práce bude realizován vıstup do pohledù \emph{flat view}, \emph{hierarchical view}, \emph{flame graph}, a budou prozkoumány monosti \emph{heat map} pohledu pro potøeby profilingu. Dále bude zahrnuta vizualizace do formy webové prezentace, tedy za pouití technologií HTML, CSS a Javascript. Zároveò bude dodrena podobná modularita jako u vstupù, tedy bude moné kdykoliv pøidat další \uv{médium} jen pøidáním modulu.
+
+
+\newpage
+
+\chapter{Dostupné nástroje pro vizualizaci}
+
+Vizualizaèních nástrojù existuje také pomìrnì velké mnoství. Kritériem vıbìru by byl urèitì podporovanı profiler, jeho data lze nástrojem zpracovávat, dále urèitì závislost na platformì, podporované vizualizaèní techniky a pøípadnì další kritéria, jako je napøíklad interaktivita.
+
+\section{Visual Studio Performance Profiling}
+
+VSPerf je kombinovanım øešením, tedy obsahuje i vizualizaci nasbíranıch dat. Jedná se o uzavøené øešení, podporován je pouze formát samotného profileru z této sady, z èeho opìt vyplıvá i závislost na prostøedí MS Visual Studio a OS MS Windows. Data lze zobrazit pomocí \emph{flat view}, \emph{hierarchical view}, \emph{detailed graph} a dalších, nepøíliš vıznamnıch technik.
+
+Nástroj poskytuje pouze GUI se všemi pohledy, tedy nelze generovat ádná obrazová data, ani jinı pøenositelnı formát vıstupu.
+
+\section{KCachegrind}
+
+Pro nástroje Callgrind a OProfile lze pouít vizualizaèní prostøedí KCachegrind. Jedná se o grafické prostøedí, které ke svému bìhu potøebuje OS GNU/Linux a grafické prostøedí KDE, a je schopné vizualizovat data v pohledech \emph{flat view}, \emph{hierarchical view}, \emph{graph view} a nìèem, co pøipomíná \emph{flame graph}.
+
+Kromì GUI umoòuje KCachegrind navíc exportovat grafy do vektorovıch formátù.
+
+\section{KProf}
+
+Tento nástroj je velmi podobnı nástroji pøedchozímu, jen dovede zpracovávat data nástroje \emph{gprof} a jemu podobnıch. Také se jedná o grafické prostøedí vyadující OS GNU/Linux a grafické prostøedí KDE. Implementuje pohledy \emph{flat view}, \emph{hierarchical view}, \emph{graph view} a \emph{object-method view}. Jedná se o podstatnì jednodušší prostøedí, ne kterékoliv vıše uvedné, ale pohledy nejsou ochuzeny o nic podstatného.
+
+Tento nástroj poskytuje pouze GUI, opìt tedy není pøítomna ádná monost, jak zpracovaná data pøenést na jinou platformu.
+
+\section{GProf2dot}
+
+Pomìrnì cennım nástrojem v oblasti vizualizace profilingovıch dat je \emph{gprof2dot}. Pùvodnì dokázal zpracovat pouze vıstupy nástroje \emph{gprof}, postupnì byla podpora rozšíøena na širokou škálu profilerù zahrnujících \emph{perf}, \emph{OProfile}, \emph{callgrind}, i napøíklad \emph{Very Sleepy}. Jeliko se jedná o skript psanı v jazyce Python, jeho pøenositelnost je podmínìná existencí interpretu pro danou platformu, a také nìkolika málo závislostmi. Oficiálnì jsou podporovány OS MS Windows a GNU/Linux. Vıstupem je vdy pouze \emph{graph view}, kterı lze pomìrnì ve velké míøe pøizpùsobovat.
+
+Nástroj sice neposkytuje GUI, zato vıstupem je obrázek v rastrovém nebo vektorovém formátu.
+
+\section{RotateRight Zoom}
+
+Podobnì jako VSProf je i RotateRight Zoom kombinovanım uzavøenım øešením. Dokáe tedy zpracovávat pouze data nashromádìná vlastním profilerem. Oproti pøedchozím nástrojùm má tu vıhodu, e lze vizualizovat data na kterékoliv z nejpouívanìjších platforem. Aèkoliv není podporován profiling na OS MS Windows, existuje pro nìj grafické rozhraní, které dovoluje zobrazovat data z profilingu probíhajícího na vzdáleném serveru. Kromì \emph{flat view} a \emph{hierarchical view} implementuje i pohled \emph{timeline}, tedy èasové osy.
+
+Nástroj obsahuje GUI a zároveò je moné exportovat data do textového formátu.
+
+\section{Shrnutí}
+
+Dostupné nástroje èasto buï neposkytují pøenositelnost vıstupu, neobsahují potøebné pohledy, nebo nepodporují širší škálu profilerù.
+
+Obsahem následující kapitoly bude návrh takového nástroje, kterı poskytne vysokou pøenositelnost vıstupu, velkı vıbìr pohledù na profilingová data a zároveò zaruèenou podporu pro velké mnoství profilerù, resp. jejich vıstupních formátù. V rámci této práce bude realizováno jádro takového nástroje, a implementace pouze vybranıch vstupních a vıstupních modulù.
+
+
+
+\newpage
+
+\chapter{Návrh nástroje}
+
+Úèelem nástroje bude naèítat profilingová data z vıstupních souborù známıch profilerù, analyzovat je a následnì vizualizovat pomocí vybraného vıstupního modulu. Jedním z hlavních poadavkù je i modularita nástroje, která bude spoèívat ve èlenìní na tøi hlavní skupiny modulù, jak je znázornìno na obrázku \ref{obr:systemmodules}. První èástí je pevnı základ, tedy samotná spustitelná èást. Ta bude pøejímat poadavky od uivatele, vybírat vstupní modul, analyzovat data a pøedávat je vıstupnímu modulu. Druhou skupinou jsou vstupní moduly - pro kadı formát bude existovat právì jeden vstupní modul. Tyto moduly se budou starat o naètení dat, transformaci do jednotné formy a pøedání zpìt do jádra nástroje. Poslední skupinou jsou vıstupní moduly, kterım jsou pøedána analyzovaná data opìt v jednotné formì. Tyto moduly na základì vstupních parametrù od uivatele poskytnou poadovanı vıstup.
+
+Aplikace bude pouze konzolová. Tím je odbourána závislost na jakémkoliv grafickém prostøedí.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/system_diagr.png}
+    \caption{Architektura nástroje, rozdìlení do tøech hlavních skupin modulù}
+    \label{obr:systemmodules}
+\end{figure}
+
+\section{Základ systému}
+
+Tato skupina modulù bude pøedstavovat spustitelnı program. Moduly základu budou tedy pevnì svázány po èase kompilace, tedy nebudou fyzicky oddìlitelné. To z dùvodu, e je nutné mezi nimi zajistit maximální kompatibilitu, kterou lze do jisté míry zaruèit pøi sestavení.
+
+\subsection{Jádro}
+
+Hlavním úkolem jádra bude obstarávat propojení všech modulù, které budou zapojeny do procesu zpracování vstupù, analızy a následnì formátování vıstupu. Samotné jádro bude mít znalost pouze rozhraní se vstupními moduly a s analyzérem, kterému pøedá zpracovaná data ze vstupních modulù.
+
+Jádro bude pøedstavovat i vstupní bod programu, tedy bude pøejímat parametry pøíkazové øádky a na základì nich vybírat pøíslušné moduly a parametry vizualizace. Také se bude starat o logovací vıstupy, které bude moné tisknout buï do konzole, nebo pøesmìrovat do souboru.
+
+\subsection{Analyzér}
+
+Tento modul bude na vstupu oèekávat dostupná profilingová data v normalizovaném formátu, která bude analyzovat a tvoøit z nich datové struktury pro jednotlivé pohledy. Bude tedy zodpovìdnı za první èást sestavení pohledù. Druhá èást bude implementována a v samotném vıstupním modulu, kterı pouze pøeète naformátované datové struktury a vytvoøí z nich konkrétní pohled.
+
+Analyzér nesmí pøedpokládat existenci veškerıch dat, jeliko ne kadı profiler poskytuje stejnou škálu informací. Od toho se bude odvíjet i mnoina pohledù, které je schopen pøedzpracovat a pøedat vıstupnímu modulu k vizualizaci.
+
+\section{Vstupní moduly}
+
+Vstupní moduly jsou takové knihovny, které oddìlenì od sebe implementují jednotlivé formáty vıstupních souborù profilerù. Jejich úkolem je na základì vstupního souboru (popø. adresáøe) naèíst data nashromádìná profilerem, normalizovat je do jednotného formátu a pøedat je jádru. 
+
+Veškeré vstupní moduly budou zrealizovány jako dynamické knihovny, na jejich existenci nesmí spuštìní programu záviset, vyjma pøípadu, kdy je vyadováno zpracování formátu, jeho zpracování tento modul implementuje.
+
+\section{Vıstupní moduly}
+
+Tyto moduly budou mít na starost implementaci specifickıch zpùsobù vizualizace pøedzpracovanıch dat, tedy konkrétní technologii. Budou pøejímat normalizovaná data dostupnıch zpùsobù vizualizace profilingovıch dat od analyzéru. Nesmí ale pøedpokládat existenci dat pro všechny pohledy, a to ze stejného dùvodu, jako analyzér - profiler nemusel potøebná data poskytnout.
+
+Vıstupní moduly budou stejnì jako vstupní realizovány jako nezávislé dynamické knihovny.
+
+\section{Technologie}
+
+Nástroj bude realizován jako pøenositelnı. Jeho zdrojovı kód bude psán v jazyce C++, a to proto, e je snadno zkompilovatelnı na vìtšinì platforem bez nutnosti instalovat nestandardní závislosti, a jeho kompilátor je zpravidla souèástí vıbavy kadého serverového systému. Také se jedná o objektovì orientovanı jazyk, take bude moné psát èitelnı a snadno rozšiøitelnı kód, kterı bude strukturou odpovídat vıše uvedenému návrhu.
+
+Pro správu zdrojovıch kódù bude pouit systém správy verzí \emph{git}.
+
+Pouití dalších technologií je závislé na implementaèních detailech. V rámci navazující bakaláøské práce bude napøíklad pouita základní škála frontendovıch webovıch technologií pro vizualizaci profilingovıch dat formou webové prezentace. Jde o technologie HTML, CSS a Javascript. Webová prezentace je dobrım pøíkladem snadno interpretovatelné formy vizualizace, která je podporována napøíè širokou škálou platforem od standardních poèítaèù a po mobilní zaøízení, a to bez rozdílu operaèního systému.
+
+\section{Licence}
+
+Nástroj bude vyvíjen jako svobodnı software pod licencí GNU GPLv3 \cite{gplv3}. Dùvodem je monost otevøít vıvoj široké veøejnosti. Takovı nástroj ani není vhodné uzavírat co se vıvoje tıèe, jeliko existuje pøíliš velké mnoství profilerù, vizualizaèních technik a monıch technologií pro vizualizaci. Zapojením široké vıvojáøské veøejnosti mùe dojít k podstatnému zlepšení kvality a obsáhlosti nástroje.
+
+\section{Shrnutí}
+
+Byl navren modulární nástroj, kterı bude øešit problémy uvedené v pøedchozích kapitolách. Jedná se zejména o pøenositelnost vıstupu nástroje a sjednocení vizualizace pro rùzné profilery. Dále jde o pøenositelnost samotného programu, jeho modularitu, která úzce souvisí s rozšiøitelností a v neposlední øadì i o otevøení zdrojovıch kódù veøejnosti.
+
+Vıvoj tohoto nástroje se pøedpokládá v rámci bakaláøské práce.
+
+
+
+\newpage
+
+\chapter{Závìr}
+
+Cílem této práce bylo analyzovat dostupné profilingové nástroje, zpùsoby vizualizace dat jimi nasbíranıch a navrhnout takovı nástroj, kterı bude umìt naèíst formáty rùznıch profilerù, zpracovat je a vytvoøit pohled, kterı nebude závislı na platformì.
+
+Problematika profilingu je pomìrnì rozsáhlá, a to díky tomu, e vıkonnostní analızu bylo ádoucí provádìt ji od poèátkù moderních systémù. Za tu dobu bylo vyvinuto velké mnoství rùznıch profilerù a byly ustáleny standardní pohledy z profilingovıch dat generované. Analıza obsahuje nástroje, které se øadí mezi obecnì nejpouívanìjší. Z nich byly vybrány dva, které budou v rámci bakaláøské práce implementovány do vısledného nástroje. Také je obsaena analıza nejèastìji pouívanıch vizualizaèních technik, ze kterıch byly vybrány tøi pro implementaci, a jedna k analıze moností pro vizualizaci takovıch dat.
+
+V poslední èásti byl navren nástroj, kterı bude realizován v rámci bakaláøské práce. Vısledkem bude modulární pøenositelná aplikace, která bude implementovat vstupní moduly pro naètení vıstupních formátù nástrojù \emph{perf} a \emph{gprof}, a vıstupní modul pro vizualizaci pomocí standardních webovıch technologií.
+
+Osobnì pro mì práce byla pøínosná hlavnì díky znalostem, které jsem v prùbìhu psaní získal. Poskytla mi pøehled o existujících profilerech, zpùsobech získávání dat a také o vizualizaèních technikách. V minulosti jsem se s profilingem setkal pouze v omezené míøe, a tak tato práce zahrnovala i velké mnoství studia.
+
+
+
+\newpage
+
+\bibliographystyle{csplainnat}
+\bibliography{bakalarka}
+
+
+
+
+
+
+%% Seznam zkratek
+
+\newenvironment{seznamzkratek}[1]%
+  {%
+    \chapter*{Seznam zkratek}
+    \addcontentsline{toc}{chapter}{Seznam zkratek}
+    \begin{acronym}[#1]
+  }{%
+    \end{acronym}
+    \newpage
+  }%
+\newcommand{\novazkratka}[3]%
+  {\acro{#1}[#2]{#3}}
+\newcommand{\zkratka}[1]%
+  {\ac{#1}}
+\newcommand{\zk}[1]%
+  {\acs{#1}}
+\newcommand{\zkratkatext}[1]%
+  {\acl{#1}}
+
+\begin{seznamzkratek}{PROF}
+
+\novazkratka{zkIRQ}{IRQ}{Interrupt Request - vnìjší hardwarové pøerušení}
+\novazkratka{zkHPC}{HPC}{Hardware Performance Counters - hardwarové vıkonnostní èítaèe}
+\novazkratka{zkNMI}{SSD}{Solid-state drive - disková jednotka zaloená nejèastìji na nevolatilní flash pamìti}
+\novazkratka{zkNMI}{NMI}{Non-maskable interrupt - nemaskovatelné pøerušení}
+\novazkratka{zkOS}{OS}{Operaèní systém}
+\novazkratka{zkCPU}{CPU}{Central processing unit - hlavní vıpoèetní jednotka poèítaèe}
+\novazkratka{zkPC}{PC}{Program counter - instrukèní èítaè v rámci programu, obsahuje offset instrukce k provedení}
+\novazkratka{zkOS}{CSV}{Comma-separated values - formát souboru s buòkami oddìlenımi specifickım znakem (èárka, støedník, aj.)}
+\novazkratka{zkHTML}{HTML}{HyperText Markup Language - znaèkovací jazyk pouívanı pro webové stránky}
+\novazkratka{zkCSS}{CSS}{Cascading Style Sheets - kaskádové styly pouívané pro webové stránky}
+
+\end{seznamzkratek}
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
