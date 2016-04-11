@@ -64,6 +64,7 @@
   commentstyle=\itshape\color{purple},
   identifierstyle=\color{black},
   stringstyle=\color{orange},
+  morekeywords={make,cmake,git}
 }
 
 \lstset{escapechar=@,style=customc}
@@ -1026,9 +1027,96 @@ Posledním v současnosti podporovaným pohledem je flame graph. Ten je sestaven
 
 \chapter{Uživatelská dokumentace}
 
-V této kapitole bude popsán postup stažení, instalace a používání vytvořeného nástroje. 
+V této kapitole bude popsán postup stažení, instalace a používání vytvořeného nástroje.
+
+\section{Získání}
+
+Software je dostupný buď z online zdrojů nebo z přiloženého CD, a to v podobě zdrojových souborů s připravenými skripty pro generování sestavovacích konfigurací.
+
+Pro přeložení jádra tohoto nástroje je třeba mít tyto prerekvizity:
+
+\begin{itemize}
+\item Sestavovací nástroj dle platformy (\emph{gcc} + \emph{make}, \emph{MS Visual Studio}, ..)
+\item Nástroj \emph{CMake}
+\end{itemize}
+
+Pro vstupní moduly formátů \emph{gprof} a \emph{perf} je navíc potřeba software překládat na OS GNU/Linux, a mít nainstalovaný balíček \texttt{binutils}. Webový výstupní modul nemá žádné dodatečné závislosti.
+
+\subsection*{Online zdroje}
+
+Pro získání nástroje z online zdrojů je nutné buď mít nainstalovaný verzovací nástroj \emph{git} a naklonovat jím příslušný vzdálený repozitář, nebo lze stáhnout zdrojové soubory zabalené v archivu díky službě portálu \emph{github.com}
+
+Přehled repozitářů:
+\begin{itemize}
+\item \url{https://github.com/ProjectPIVO/pivo-core} - jádro nástroje - je potřeba v každém případě
+\item \url{https://github.com/ProjectPIVO/pivo-input-gprof} - \emph{gprof} vstupní modul
+\item \url{https://github.com/ProjectPIVO/pivo-input-perf} - \emph{perf} vstupní modul
+\item \url{https://github.com/ProjectPIVO/pivo-output-html} - webový výstupní modul
+\item \url{https://github.com/ProjectPIVO/pivo-input-dummy} - kostra implementace vstupního modulu pro případ tvorby nového
+\end{itemize}
+
+Příslušnou adresu buď použijeme jako zdroj pro nástroj \emph{git}, nebo jako URL, kde lze po navigování webovým prohlížečem najít tlačítko s popiskem \uv{Download ZIP}, kterým je spuštěna archivace a stažení.
+
+Nejdříve provedeme vybraným způsobem stažení jádra nástroje, přesuneme se do podadresáře \texttt{modules}, kam můžeme vkládat adresáře obsahující jednotlivé moduly nástroje. Nástroj \emph{CMake} je pak dovede zaregistrovat pomocí skriptu, který je v repozitáři přibalen.
+
+\subsection*{Přiložené CD}
+
+Při sestavení a instalaci nástroje z přiloženého CD je vhodné nejdříve překopírovat obsah příslušného adresáře někam na místní disk. V připravené adresářové struktuře jsou připraveny všechny moduly nástroje, není tedy nutné nic dodatečně stahovat nebo přesouvat.
+
+\section{Instalace}
+
+V připravené adresářové struktuře je nyní potřeba vygenerovat konfigurační soubory pro sestavení, a to nástrojem \emph{CMake}. V případě konzolové verze stačí zadat \texttt{cmake .} v kořenovém adresáři adresářové struktury nástroje - je použit výchozí kompilátor pro danou platformu, pokud je přítomen. Běžně je k dispozici i grafické rozhraní pro nástroj \emph{CMake}, kde stačí zadat vstupní a výstupní cestu, zvolit kompilátor, kterým se chystáme projekt sestavit, a tlačítkem \uv{Configure} a \uv{Generate} spustit generování.
+
+Následně je možné projekt sestavit zvoleným nástrojem.
+
+Výstupem je složka \texttt{bin}, která obsahuje jak přeložené jádro, kterým se nástroj spouští, tak všechny vybrané moduly v podobě dynamických knihoven, a také všechny přidružené soubory, které moduly vyžadují. V případě webového výstupního modulu to je složka se šablonami s názvem \texttt{HtmlTemplates}.
+
+\subsection*{Příklad posloupnosti příkazů instalace na GNU/Linux}
+
+\lstset{escapechar=@,style=custombash}
+\begin{lstlisting}
+# Naklonovani vzdaleneho repozitare jadra
+git clone https://github.com/ProjectPIVO/pivo-core
+# Presun do slozky s moduly
+cd pivo-core/modules
+# Naklonovani vsech dostupnych modulu
+git clone https://github.com/ProjectPIVO/pivo-input-gprof
+git clone https://github.com/ProjectPIVO/pivo-input-perf
+git clone https://github.com/ProjectPIVO/pivo-output-html
+# Presun zpet do korenoveho adresare
+cd ..
+# Spusteni CMake a vygenerovani Makefile
+cmake .
+# Sestaveni nastroje
+make
+\end{lstlisting}
 
 
+\section{Spuštění}
+
+Nástroj je standardně spouštěn přes aplikaci vzniklou kompilací jádra, která nese název \texttt{pivo-core}. Veškerá parametrizace probíhá pomocí argumentů příkazové řádky, není zde tedy žádný konfigurační soubor nebo jiný způsob.
+
+Parametry, které lze předat aplikaci jsou tyto:
+
+\begin{itemize}
+\item \texttt{-im <název>} - (povinný) specifikace vstupního modulu (\texttt{gprof}, \texttt{perf}, ..)
+\item \texttt{-om <název>} - (povinný) specifikace výstupního modulu (\texttt{html}, ..)
+\item \texttt{-i <cesta>} - (povinný) specifikace vstupního souboru nebo adresáře - typicky výstup profileru (\texttt{gmon.out}, \texttt{perf.data}, ..)
+\item \texttt{-o <cesta>} - cesta pro generování výstupu; ve výchozím nastavení se používá současný pracovní adresář
+\item \texttt{-b <cesta>} - cesta ke spustitelnému souboru, který byl v rámci profilingového sezení analyzován
+\item \texttt{-ll <číslo>} - logovací úroveň (0 = vypnuto, 1 = \texttt{ERROR}, 2 = \texttt{WARNING}, 3 = \texttt{INFO}, 4 = \texttt{VERBOSE}, 5 = \texttt{DEBUG}); ve výchozím nastavení je použita úroveň 2 = \texttt{WARNING}
+\item \texttt{-lf <cesta>} - soubor, do kterého se budou ukládat logy; ve výchozím nastavení vypnuto
+\item \texttt{-s} - kompletně vypíná veškerý výstup na konzoli (\texttt{stdout}, \texttt{stderr})
+\end{itemize}
+
+Příkaz pro zpracování výstupu nástroje \emph{gprof} z analýzy programu \texttt{a.out} za použití webového výstupního modulu, kdy specifikujeme i parametr pro detailnější log navíc ukládaný do souboru, může například vypadat takto:
+
+\lstset{escapechar=@,style=custombash}
+\begin{lstlisting}
+./pivo-core -im gprof -om html -i gmon.out -b a.out -ll 4 -lf pivo.log
+\end{lstlisting}
+
+Jelikož jsme nespecifikovali výstupní složku, budou vygenerované soubory webové stránky uloženy do současného pracovního adresáře.
 
 
 
