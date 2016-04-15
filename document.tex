@@ -13,6 +13,7 @@
 \usepackage{color}
 \usepackage{svg}
 \usepackage[nottoc,notlot,notlof]{tocbibind}
+\usepackage{rotating}
 
 \usepackage[pdftex]{hyperref}
 \hypersetup{colorlinks=true,
@@ -79,17 +80,13 @@
 
 In first chapters, the problem of profiling and collecting performance data is investigated. Next part focuses on analysis of commonly used profiling tools and their output formats, common visualization methods and already available visualization tools.
 
-The second part contains design of modular tool, which would be able to load, analyze and visualize profiling data independently of what profiler was used and which operating system the user runs.
+The second part contains design of modular tool, which would be able to load, analyze and visualize profiling data independently of what profiler was used and which operating system the user runs. The last part then focuses on tool realization, contains implementation details and user documentation. Outputs are validated against outputs from already existing tools.}
 
-The last part focuses on tool realization, contains implementation details and user documentation.}
-
-\abstracttextcz{Hlavním cílem této práce je analýza dostupných profilingových nástrojů, jejich výstupních formátů, způsobů vizualizace jimi nasbíraných dat a návrh přenositelného modulárního nástroje pro jejich vizualizaci a jeho realizace.
+\abstracttextcz{Hlavním cílem této práce je analýza dostupných profilingových nástrojů, jejich výstupních formátů, způsobů vizualizace jimi nasbíraných dat, návrh přenositelného modulárního nástroje pro jejich vizualizaci a jeho realizace.
 
 V prvních kapitolách je rozebrána problematika profilingu a způsobů sběru dat. Následuje analýza používaných profilingových nástrojů a formátu jejich výstupu, dále způsobů vizualizace profilingových dat a nástrojů pro vizualizaci, které jsou již dostupné.
 
-V druhé části je obsažen návrh modulárního nástroje, který bude schopen nezávisle na operačním systému a použitém profileru načíst odpovídajícím modulem profilingová data, vnitřně je analyzovat a pomocí výstupního modulu poskytnout jejich vizualizaci.
-
-Poslední část se zabývá realizací nástroje, obsahuje programátorskou a uživatelskou dokumentaci výsledného programu.}
+V druhé části je obsažen návrh modulárního nástroje, který bude schopen nezávisle na operačním systému a použitém profileru načíst odpovídajícím modulem profilingová data, vnitřně je analyzovat a pomocí výstupního modulu poskytnout jejich vizualizaci. Poslední část se pak zabývá realizací nástroje, obsahuje programátorskou a uživatelskou dokumentaci výsledného programu. Výstupy jsou dále ověřeny oproti výstupům již existujících nástrojů.}
 
 \begin{document}
 
@@ -1122,8 +1119,118 @@ Jelikož jsme nespecifikovali výstupní složku, budou vygenerované soubory we
 
 \chapter{Ověření výsledků}
 
-TODO: genetic algorithms (gprof + perf), iCe (perf)
+V této kapitole budou prezentovány výstupy realizovaného nástroje na základě výkonnostní analýzy dvou existujících projektů a ve vhodných případech budou porovnány s výstupy již existujících nástrojů. Takto analyzované výstupy by měly korespondovat minimálně v hodnotách časů, respektive počtů vzorků. Také bude provedena krátká diskuse nad výsledky.
 
+\section{Jednoduchá aplikace a gprof}
+
+Pro potřeby porovnání výsledků je prvním vybraným programem pro výkonnostní analýzu a následnou vizualizaci program jednodušší - v tomto případě se jedná o semestrální práci z předmětu KIV/PRO. V rámci ní byl implementován genetický algoritmus pro nalezení alespoň jednoho vektoru řešení rovnice o N neznámých. Program tedy sestává z parsování matematického výrazu algoritmem shunting yard do podoby RPN\footnote{Reverse Polish notation, také nazývaná postfixová notace, je tvar matematického výrazu, který lze snadno strojově vyhodnotit} zásobníku, opakovaného vyhodnocení takto zpracovaného zásobníku, a pak z operací souvisejících s genetickými algoritmy, jako je například křížení a mutace.
+
+Zdrojové kódy jsou k dispozici na adrese:\\
+\url{https://github.com/MartinUbl/GA_EquationSolving}
+
+Výstup flat view nástroje původního (obr. \ref{obr:testgprofreportflat}) a nástroje \emph{PIVO} (obr. \ref{obr:testgprofpivoflat}) se formou moc neliší - jde o tabulku funkcí s časy, procenty a počtem volání. Na první pohled lze však vidět, že původní \emph{gprof report} výstup neobsahuje inkluzivní časy, a také neobsahuje žádnou podpůrnou vizualizaci v podobě podbarvení řádků, jako výstup nástroje \emph{PIVO}. Oproti tomu původní výstup obsahuje pole \uv{\emph{us/call}}, které uvádí průměrný počet mikrosekund na jedno volání, a také kumulativní čas. Jedná se ale spíše o podpůrné hodnoty, jejichž význam je do velké míry nahrazen kombinací exkluzivního a inkluzivního času.
+
+\newpage
+\vspace*{1cm} %ignore this line and act like everything's fine
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-ga-orig-flat.png}
+    \caption{Flat view (výřez) nástroje \emph{gprof report} z běhu genetického algoritmu}
+    \label{obr:testgprofreportflat}
+\end{figure}
+\vfill
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-ga-pivo-flat.png}
+    \caption{Flat view (výřez) nástroje \emph{PIVO} z běhu genetického algoritmu}
+    \label{obr:testgprofpivoflat}
+\end{figure}
+\vfill
+
+\begin{sidewaysfigure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-ga-gprof2dot-graph.png}
+    \caption{Call-graph zpracovaný nástrojem \emph{gprof2dot} z běhu genetického algoritmu}
+    \label{obr:testgprof2dot}
+\end{sidewaysfigure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-ga-pivo-graph.png}
+    \caption{Call-graph zpracovaný nástrojem \emph{PIVO} z běhu genetického algoritmu, uzly jsou obarveny podle inkluzivního času}
+    \label{obr:testgprofpivograph1}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-ga-pivo-graph-ratio.png}
+    \caption{Call-graph zpracovaný nástrojem \emph{PIVO} z běhu genetického algoritmu, uzly jsou obarveny podle poměru exkluzivního a inkluzivního času; lze snadno pozorovat \emph{hot path}}
+    \label{obr:testgprofpivograph2}
+\end{figure}
+
+\newpage
+
+Na pohledu call-graph lze snadno demonstrovat výhodu interaktivity. Obrázek \ref{obr:testgprof2dot} obsahuje call-graph vygenerovaný běžně používaným nástrojem \emph{gprof2dot}, který musel být ale ručně oříznut v grafickém editoru, aby se vešel na stránku alespoň otočený. Za podpory interaktivity je oproti tomu možné spousty informací skrýt a ponechat viditelné jen ty nejdůležitější - konkrétní časy mohou být vidět až po najetí myší, stejně jako celá jména funkcí. Dále je hlavně v rozsáhlejších grafech velmi vhodné mít možnost filtrování a případně i změny stylu obarvování. Na obrázku \ref{obr:testgprofpivograph1} lze vidět pohled generovaný nástrojem \emph{PIVO} odpovídající původnímu z nástroje \emph{gprof2dot}. Na obrázku \ref{obr:testgprofpivograph2} lze pak vidět obarvený graf podle poměru exkluzivního a inkluzivního času, což dovoluje vizuálně oddělit \emph{hot path} od \uv{méně podstatné} části grafu.
+
+Jednoznačný výkonnostní problém obsahuje funkce \texttt{rpn\_evaluate\_stack()}, což lze poznat jak z velkého procenta exkluzivního času (flat view), tak z call-graph pohledu, kde tímto uzlem ostře končí \emph{hot path}. Dále by bylo vhodné zvážit optimalizaci v oblasti práce se zásobníkem, jelikož všechny funkce mají poměrně vysoké procento exkluzivního času, což lze vidět ve flat view. Navíc funkce \texttt{rpn\_pop\_two\_values()} má příliš velké procento exkluzivního času na to, co skutečně provádí - to by samo o sobě napovídalo, že funkce pravděpodobně špatně využívá cache nebo obsahuje jinou neoptimální strukturu. Nicméně vzhledem k časům ostatních zásobníkových funkcí se dá usoudit, že problém bude v samotné implementaci zásobníku nebo jeho nesprávném využívání ve funkci vyhodnocující RPN zásobník.
+
+Vzhledem ke znalosti kódu lze problém se zásobníkem svést na špatnou lokalitu paměti, která vede k velkému počtu cache-miss při provádění operací nad zásobníkem. Jednotlivé prvky vkládané do zásobníku totiž velmi pravděpodobně leží daleko od sebe vzhledem ke způsobu, jakým je zásobník sestavován. Funkce pro vyhodnocení RPN zásobníku je neefektivně implementovaná hlavně kvůli skutečnosti, že provádí příliš zbytečných alokací a dealokací paměti.
+
+
+\section{Rozsáhlá aplikace a perf}
+
+Druhým programem je projekt poměrně rozsáhlý. Jedná se o emulátor serverové strany MMORPG\footnote{massively multiplayer online role-playing game, online hra na hrdiny} hry World of Warcraft. Taková aplikace musí v reálném čase komunikovat po síti se stovkami až tisíci klienty, vyhodnocovat akce spojené s herní aktivitou, přeposílat vyhodnocené akce okolí hráčů, starat se o \uv{umělou inteligenci} veškerých postav ve hře, které jsou ovládány serverem a spousty dalších věcí. V momentě, kdy je připojeno více než cca 50 hráčů by již nebylo možné v žádném případě použít nástroj \emph{gprof}, jelikož generuje takovou zátěž v podobě instrumentovaných volání navíc, že se hra stává v podstatě nehratelnou. Proto je pro takto zatížený systém vhodné použít profiler \emph{perf}.
+
+Zdrojové kódy jsou k dispozici na adrese:\\
+\url{https://github.com/TrinityCoreArchive/TrinityCoreOld/}
+
+V této podkapitole budou prezentovány výstupy nasbírané z emulátoru běžícího v rámci projektu iCe Online (\url{http://ice-wow.eu}), kde je provozována obdoba výše uvedeného emulátoru včetně potřebného zatížení.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-gcore-flat.png}
+    \caption{Flat view (výřez) z běhu emulátoru MMORPG herního serveru}
+    \label{obr:testprefflat-gcore}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-gcore-calltree.png}
+    \caption{Call tree (výřez) z běhu emulátoru MMORPG herního serveru}
+    \label{obr:testpreftree-gcore}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-gcore-callgraph.png}
+    \caption{Call-graph z běhu emulátoru MMORPG herního serveru; výstup je velmi redukován za pomoci filtru}
+    \label{obr:testprefgraph-gcore}
+\end{figure}
+
+\begin{sidewaysfigure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-gcore-flame.png}
+    \caption{Flame graph z běhu emulátoru MMORPG herního serveru}
+    \label{obr:testprefflame-gcore}
+\end{sidewaysfigure}
+
+\begin{sidewaysfigure}[h]
+    \centering
+    \includegraphics[interpolate,width=1.0\textwidth]{img/test-gcore-brendan-flame.png}
+    \caption{Flame graph generovaný nástrojem \emph{FlameGraph} z běhu emulátoru MMORPG herního serveru}
+    \label{obr:testprefflamegregg-gcore}
+\end{sidewaysfigure}
+
+Lze porozovat hned několik typických věcí, ve kterých se výstup mírně liší u nástroje \emph{gprof} a \emph{perf}. V první řadě jde samozřejmě o schopnost pracovat s plnou hierarchií volání, tedy možnost generovat strom volání a flame graph. Dalším poměrně významným bodem je přítomnost \uv{falešných} hran v call-graph pohledu (obrázek \ref{obr:testprefgraph-gcore}). Ty vznikají pravděpodobně kvůli optimalizacím, které se dějí, ač byl zkoumaný program kompilován s přepínačem \texttt{-fno-omit-frame-pointer}\footnote{přepínač kompilátoru \emph{gcc} používaný pro zamezení optimalizace call stacku}. Například metoda \texttt{Player::Update()} je volána výhradně z metody \texttt{Map::Update()}, ale přesto existují hrany z jiných metod. Tyto hrany mají často podstatně menší počet vzorků, ale nelze je jednoduše identifikovat, a tedy odstranit. Nástroj by musel umět analyzovat i zdrojový kód, a to v současné době není podporováno.
+
+Dále si lze všimnout na stejném pohledu i toho, že jsou přítomny dvě oddělené komponenty grafu. To je důsledkem filtrování, jelikož je nastaven filtr na inkluzivní počet vzorků, kdy je zobrazen pouze ten uzel, který má procentuální počet inkluzivních vzorků větší než 15\%. Metoda \texttt{Unit::CastSpell()} je volána z mnoha míst v celé hierarchii volání, takže její inkluzivní počet vzorků byl rozložen mezi všechny volající funkce, což mělo za důsledek to, že ve výsledku žádná z nich nevyhovovala filtru.
+
+Na zbylých pohledech lze pozorovat vcelku očekávané skutečnosti. Flat view (obrázek \ref{obr:testprefflat-gcore}) má nyní trochu jinou distribuci časů, ale to jen díky tomu, že byl analyzován neměřitelně větší projekt. Nejvíce exkluzivních vzorků se nachází v metodě \texttt{Map::Visit()}, což je poměrně očekávaná skutečnost vzhledem k tomu, že tato metoda se stará o průchod jednotlivých polí mapy a zavolání příslušných updaterů. Zároveň v ní lze očekávat největší počet výskytů cache-miss, jelikož její implementace sestává z podstaty věci z nelineárního přístupu k paměti.
+
+Nejvíce průkazný je zde pohled zachovávající hierarchii, zde call tree nebo flame graph. Jelikož se jedná o srovnatelné pohledy, jen trochu jinak postavené, lze pozorovat podobné skutečnosti. Výhodou call tree je možnost identifikovat funkci s velkým počtem exkluzivních vzorků v poměru k inkluzivním. To poměrně spolehlivě identifikuje výkonnostní problém. Z obrázku \ref{obr:testpreftree-gcore} lze vidět, že takový problém leží v metodě \texttt{Aura::GetCaster()}. Jde ale pouze o 0.25\%, a proto tento problém není tak velký. Jelikož je výstup v podobě stromu volání velmi rozsáhlý, obtížně se v něm vyhledává takový problém bez znalosti kódu. Vhodnější je pak flame graph, který lze vidět na obrázku \ref{obr:testprefflame-gcore}. Pro porovnání na obrázku \ref{obr:testprefflamegregg-gcore} lze vidět výstup nástroje \emph{FlameGraph}, který až na odlišné uspořádání a seskupení nenalezených symbolů vypadá velmi podobně.
+
+V tomto pohledu lze poměrně spolehlivě identifikovat nejnáročnější metody v celém programu, kterými jsou jistě všechny updatovací metody. Díky interaktivitě je možné proklikat do jednotlivých metod a zjistit, co činí výkonnostní potíže. Na grafu je mj. vidět i vysoký sloupec sestávající ze stále stejných symbolů. To je zvláštní případ metod z knihovny \emph{ACE}, kde nejdříve dojde k poměrně rozsáhlému rekurzivnímu volání a až na konci celé rekurze se nachází nějaký výkonný kód. 
 
 
 
