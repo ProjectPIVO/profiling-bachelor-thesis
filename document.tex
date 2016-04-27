@@ -118,7 +118,7 @@ Rád bych touto cestou poděkoval Ing. Jindřichu Skupovi za odborné vedení a 
 \newpage
 
 \chapter{Úvod}
-Výkon programů, tedy schopnost zpracovat co největší množství dat nebo provést co nejvíce výpočtů za jednotku času, byl vždy velmi důležitým kritériem použitelnosti kteréhokoliv software. Při psaní programového kódu je tedy nutné dbát na vhodnou volbu algoritmu, na způsob zápisu a v krajních případech i na to, jak kompilátor přeloží zapsaný programový kód do binární podoby, případně jak interpret uvnitř odvodí posloupnost operací nutnou k jeho vykonání. Takových informací je ale příliš na to, aby bylo v lidských silách bez pomoci strojové analýzy vyvinout optimální kód - tedy takový, který má prokazatelně největší výkon bez ztráty přesnosti a správnosti výsledku. Proto existují nástroje zvané \uv{profilery}, které analyzují běh programu, výkon jednotlivých částí kódu, případně staticky i kód samotný, aby mohly posléze vygenerovat zprávu o tom, kde program tráví nejvíce času a kde je tedy vhodné provést optimalizaci. Stejně jako profilery nasbíraná data je důležitý způsob jejich prezentování vývojáři, aby mohl optimalizovat tu část programu, která je skutečně zodpovědná za pomalý běh.
+Výkon programů, tedy schopnost zpracovat co největší množství dat nebo provést co nejvíce výpočtů za jednotku času, byl vždy velmi důležitým kritériem použitelnosti kteréhokoliv software. Při psaní programového kódu je tedy nutné dbát na vhodnou volbu algoritmu, na způsob zápisu a v krajních případech i na to, jak kompilátor přeloží zapsaný programový kód do binární podoby, případně jak interpret uvnitř odvodí posloupnost operací nutnou k jeho vykonání. Takových informací je ale příliš na to, aby bylo v lidských silách bez pomoci strojové analýzy vyvinout optimální kód - tedy takový, který má prokazatelně největší výkon bez ztráty přesnosti a správnosti výsledku. Proto existují nástroje zvané \uv{profilery}, které analyzují běh programu, výkon jednotlivých částí kódu, případně staticky i kód samotný, aby mohly posléze vygenerovat zprávu o tom, kde program tráví nejvíce času a kde je tedy vhodné provést optimalizaci. 
 
 Cílem této práce je analyzovat dostupné profilery, jejich výstupní formáty, způsoby, jakým prezentují nasbíraná data uživateli a existující způsoby vizualizace těchto dat obecně, a na základě této analýzy navrhnout a implementovat modulární nástroj, který dovede vizualizovat výstupy různých profilerů v jednotné formě. Modularita bude spočívat v oddělené implementaci jádra aplikace, modulů pro načítání dat z profilerů a modulů výstupních. Dalším požadavkem je přenositelnost mezi běžnými platformami.
 
@@ -128,102 +128,35 @@ Navržený nástroj tedy nebude obstarávat sběr dat, pouze jejich zpracování
 
 \chapter{Profiling}
 
-Profiling, někdy nazývaný \emph{výkonnostní analýza}, je způsob vyhledávání míst v programu, která výrazně snižují výkon celé aplikace, popř. celého systému. Takové místo se nazývá \emph{bottleneck} a jeho identifikace nemusí být snadná, stejně jako pozdější řešení. K identifikaci výkonnostních problémů slouží nástroje zvané \emph{profilery}, které se starají o sběr informací z běhu programu a někdy i ze statické analýzy kódu. Tato data pak předají vizualizačnímu nástroji, ať už ve formě souboru nebo datového proudu, a ten je poskytne v lidmi interpretovatelné formě vývojáři.
+Výkonnostní analýza neboli \emph{profiling} je způsob vyhledávání míst v programu, která výrazně snižují výkon celé aplikace, popř. celého systému. Takové místo se nazývá \emph{úzké hrdlo} a jeho identifikace nemusí být snadná, stejně jako pozdější řešení. K identifikaci výkonnostních problémů slouží nástroje zvané \emph{profilery}, které se starají o sběr informací z běhu programu. Tato data pak předají vizualizačnímu nástroji, ať už ve formě souboru nebo datového proudu, a ten je poskytne ve srozumitelné formě vývojáři.
 
 \section{Výkon}
 
-Bavíme-li se o analýze výkonu programů, je nutné stanovit, co vlastně sledujeme, a co očekáváme, že nám profilery poskytnou. Hlavní veličinou, kterou budeme sledovat, je výkon. V tomto kontextu lze použít fyzikální definici, tedy že výkon je práce vykonaná za jednotku času. U času se můžeme zaobírat pouze jednotkou, tedy za jaký časový úsek budeme práci sledovat - to je ale velmi specifické pro každý případ, a proto se tím nebudeme v obecné rovině zaobírat. Zbývá pouze definovat práci. Tu můžeme v této terminologii popsat například jako počet vykonaných instrukcí, což je exaktní měřítko z hlediska hardware, ale nemusí mít dostatečnou vypovídací hodnotu o skutečné efektivní práci. Proto práci definujeme spíše jako počet vykonaných operací, kde operaci můžeme abstrahovat například na funkční volání. Z toho vyplývá i to, že je nutné důsledně členit programový kód do funkcí (metod, objektů), aby bylo možné tuto metriku vůbec použít.
+Bavíme-li se o analýze výkonu programů, je nutné stanovit, co vlastně sledujeme, a co očekáváme, že nám profilery poskytnou. Hlavní veličinou, kterou budeme sledovat, je výkon. V tomto kontextu lze použít fyzikální definici, tedy že výkon je práce vykonaná za jednotku času. Jednotkou času se v obecné rovině zaobírat nebudeme, jelikož je velmi specifická pro každý případ. Zbývá pouze definovat práci. Tu můžeme v této terminologii popsat například jako počet vykonaných instrukcí, což je exaktní měřítko z hlediska hardware, ale nemusí mít dostatečnou vypovídací hodnotu o skutečné efektivní práci. Proto práci definujeme spíše jako počet vykonaných operací, kde operaci můžeme abstrahovat například na funkční volání. Z toho vyplývá i to, že je nutné důsledně členit programový kód do funkcí (metod, objektů), aby bylo možné tuto metriku vůbec použít.
 
-\section{Bottleneck}
+\section{Úzké hrdlo}
 
-Pojmem \emph{bottleneck} se obecně označuje kterýkoliv element (modul, komponenta, funkce), který způsobuje zpomalení celku (aplikace, stroje). Bottleneck můžeme najít na různých místech, a to nejen v programovém kódu - může například jít o zpoždění při komunikaci přes síť, při zápisu nebo čtení z disku. To jsou takzvané hardwarové bottlenecky, a mají pouze nepřímý vliv na výkon programu samotného. Lze je řešit buď výměnou součástky, nebo jinou fyzickou změnou (výměna kabelu, změna topologie sítě, atd.).
+Pojmem \emph{úzké hrdlo} (z angl. \emph{bottleneck}) se obecně označuje kterýkoliv element (modul, komponenta, funkce), který způsobuje zpomalení celku (aplikace, stroje). Úzké hrdlo můžeme najít na různých místech, a to nejen v programovém kódu - může například jít o zpoždění při komunikaci přes síť, při zápisu nebo čtení z disku. To jsou takzvaná hardwarová úzká hrdla, a mají pouze nepřímý vliv na výkon programu samotného. Lze je řešit buď výměnou součástky, nebo jinou fyzickou změnou (výměna kabelu, změna topologie sítě, atd.).
 
-Hlavním bodem zájmu bude ale bottleneck softwarový, tedy ten, co lze optimalizovat pouze změnami v programovém kódu. Nutno dodat, že optimalizace softwarového bottlenecku nemusí nutně znamenat jeho odstranění. Pokud jde například o zápis velkého objemu dat na pevný disk, je samozřejmé, že tato činnost bude trvat delší dobu, a bez optimalizace na úrovni hardware (např. výměna rotačního disku za SSD) se nelze zbavit ani zpoždění při provádění programu. Ve spoustě případů, pokud dokončení zápisu nemusí blokovat běh programu, se ale lze vyhnout čekání, a to například vhodnou paralelizací.
+Hlavním bodem zájmu bude ale úzké hrdlo softwarové, tedy to, co lze optimalizovat pouze změnami v programovém kódu. Nutno dodat, že optimalizace softwarového úzkého hrdla nemusí nutně znamenat jeho odstranění. Pokud jde například o zápis velkého objemu dat na pevný disk, je samozřejmé, že tato činnost bude trvat delší dobu, a bez optimalizace na úrovni hardware (např. výměna rotačního disku za SSD) se nelze zbavit ani zpoždění při provádění programu. Ve spoustě případů, pokud dokončení zápisu nemusí blokovat běh programu, se ale lze vyhnout čekání, a to například vhodnou paralelizací.
 
 Doba provádění programu bude vždy záviset na hardware. Důležité je proto oddělit problém softwarový od problému hardwarového. Výkonnostní optimalizaci softwarového rázu lze definovat jako takový zásah do programového kódu, který zkrátí dobu provádění daného úseku kódu beze změny jeho výstupu. Použitím abstrakce z předchozí sekce jde o snížení počtu operací, případně o výměnu za méně náročné operace.
 
-Dále se budeme zabývat pouze bottlenecky softwarovými.
+Dále se budeme zabývat pouze úzkými hrdly softwarovými.
 
 \subsection{Typické řešení}
 
-Velmi často vzniká chyba v použití nevhodného algoritmu, a to buď obecně, nebo v závislosti na situaci. Školním případem by byly řadící algoritmy - primitivním způsobem, jak řadit pole čísel, je například \emph{bubble sort}. Jsou ale obecně známy mnohem efektivnější algoritmy řazení pro jakoukoliv množinu čísel. Proto je volba \emph{bubble sortu} obecně nevhodná z hlediska výkonu. Nevhodná volba v závislosti na situaci často spočívá v opomenutí nějakého faktu, který se situací souvisí - například nějaká definovatelná pravidelnost ve vstupních datech. V řadících algoritmech by byla dobrým příkladem seřazená posloupnost na vstupu. Pokud bychom mohli ve většině případů předpokládat seřazenou nebo téměř seřazenou posloupnost, pak není vhodné implementovat algoritmus, který přidává velkou režii v podobě přeskupování již seřazené podposloupnosti (např. \emph{heap sort}), ale je lepší využít takový, který lépe pracuje s téměř seřazenou posloupností (např. \emph{insertion sort} a jeho varianty).
+Velmi často vzniká chyba v použití nevhodného algoritmu, a to buď obecně, nebo v závislosti na situaci. Školním příkladem by byly řadící algoritmy - primitivním způsobem, jak řadit pole čísel, je například \emph{bubble sort}. Jsou ale obecně známy mnohem efektivnější algoritmy řazení jakékoliv množiny čísel (\emph{quick sort}, \emph{heap sort}, \dots). 
 
-Další typickou příčinou neoptimálního běhu je nevhodné využití datových úložišť obecně. Zpravidla je vhodné mít jako prostředníka mezi pomalým a okamžitým úložištěm nějakou vyrovnávací paměť, takzvanou \emph{cache}. Využitím takovéto paměti odpadá nutnost žádat pomalé úložiště pro každý blok, který nás zajímá. Místo toho lze do cache nahrát mnohem větší množství dat, která jsou například často využívaná, nebo v blízkém okolí aktuálně žádaných dat. Tím je možné minimalizovat přístupovou dobu pro případ opakovaného nebo sekvenčního čtení.
+Další typickou příčinou neoptimálního běhu je nevhodné využití datových úložišť obecně. Zpravidla je vhodné mít jako prostředníka mezi pomalým a okamžitým úložištěm nějakou vyrovnávací paměť, takzvanou \emph{cache}. Využitím takovéto paměti odpadá nutnost žádat pomalé úložiště pro každý blok, který nás zajímá. Místo toho lze do vyrovnávací paměti nahrát mnohem větší množství dat, která jsou například často využívaná, nebo v blízkém okolí aktuálně žádaných dat. Tím je možné minimalizovat přístupovou dobu pro případ opakovaného nebo sekvenčního čtení.
 
-Speciálním případem nepřímo viditelného datového úložiště je cache procesoru, jejíž využití je přímo nutností pro rozumný běh kteréhokoliv programu. Čtení a zápis zde totiž probíhá v několikanásobně kratším čase, než ve standardní operační paměti. To, co se v cache procesoru uchovává je možné v rámci programu ovlivnit například tak, že je respektován princip \emph{lokality} - pokud jsou data uchována v paměti za sebou, a je k ním i tak přistupováno, nevzniká v CPU cache tolik cache-miss\footnote{skutečnost, kdy nebyla nalezena položka v cache procesoru, takže musí být vyzvednuta z pomalejšího úložiště} a provádění programu je podstatně rychlejší.
+Speciálním případem nepřímo viditelného datového úložiště je vyrovnávací paměť procesoru, jejíž využití je přímo nutností pro rozumný běh kteréhokoliv programu. Čtení a zápis zde totiž probíhá v několikanásobně kratším čase, než ve standardní operační paměti. To, co se ve vyrovnávací paměti procesoru uchovává je možné v rámci programu ovlivnit jen velmi omezeně. Lze například respektovat princip \emph{lokality} - pokud jsou data uchována v paměti za sebou, a je k ním i tak přistupováno, nevzniká ve vyrovnávací paměti CPU zpravidla tolik výpadků bloku\footnote{skutečnost, kdy nebyla nalezena položka ve vyrovnávací paměti procesoru, takže musí být vyzvednuta z pomalejšího úložiště} a provádění programu je podstatně rychlejší.
 
 \section{Kritické optimalizace}
 
-V krajních případech, kdy máme jistotu, že nelze použít lepší algoritmus a nelze lépe optimalizovat přístupy k datovým úložištím, ale stále potřebujeme zvednout výkon, se naskýtá možnost přistoupit k tzv. \emph{kritickým optimalizacím}. Ty spočívají hlavně ve snížení náročnosti na úrovni instrukcí. Velkou část optimalizací na úrovni instrukcí ale dělá sám kompilátor, jelikož se často jedná o typické případy.
+V krajních případech, kdy máme jistotu, že nelze použít lepší algoritmus a nelze lépe optimalizovat přístupy k datovým úložištím, ale stále potřebujeme zvýšit výkon, se naskýtá možnost přistoupit k tzv. \emph{kritickým optimalizacím}. Ty spočívají hlavně ve snížení náročnosti na úrovni instrukcí. Velkou část optimalizací na úrovni instrukcí ale provádí sám kompilátor, jelikož se často jedná o typické případy.
 
 Dobrým příkladem kompilátorem obtížně proveditelné optimalizace je minimalizace počtu skoků, které jsou vykonány. Procesory, které implementují pipelining\footnote{způsob paralelního zpracování instrukcí ve vzájemně se nepřekrývajících fázích}, musí totiž při provedení skoku zahodit doposud předzpracované instrukce a začít se zpracováním dalších na novém místě programu. Jelikož ve veškerých moderních programovacích jazycích dochází ke skoku pouze v rámci podmínek a cyklů, budou právě tyto struktury hlavním bodem zájmu při optimalizaci počtu skoků. Co se podmínek týče, lze využít pravděpodobnostní přístup - pokud je pravděpodobné, že podmínka bude splněna ve většině případů, je vhodné zajistit, aby se při splnění podmínky neprováděl skok.
-
-Příklad optimalizace skoku lze vidět v následujících úryvcích kódu. V kódu \ref{branch_1_c} je implementována funkce, která určitým způsobem trasformuje vstupní parametr. Uprostřed funkce je transformace podmíněná, která testuje, zdali se nejedná o krajní případ - funkce \texttt{is\_corner\_case()} bude vracet ve většině případů hodnotu $0$, tedy podmínka splněna nebude. V pseudoassembly kódu \ref{branch_1_asm} lze vidět, že se při nesplnění podmínky provede skok na návěští pod blokem příkazů, co by se provedly při platnosti podmínky. Jelikož podmínka bude splněna ve velmi malém množství případů, bude se naopak ve velkém množství případů provádět skok.
-
-\lstset{escapechar=@,style=customc}
-\begin{lstlisting}[caption=Funkce v jazyce C znázorňující nutnost skoku při splněné podmínce, label=branch_1_c]
-int testFunction(int value)
-{
-    value *= 2;
-  
-    if (is_corner_case(value))
-        value += 10;
-  
-    value *= 2;
-  
-    return value;
-}
-\end{lstlisting}
-
-\lstset{escapechar=@,style=customasm}
-\begin{lstlisting}[caption=Pseudoassembly verze kódu \ref{branch_1_c}, label=branch_1_asm]
-testFunction(VALUE):
-    mul     2, VALUE
-    call    is_corner_case(VALUE)
-    cmp     %eax, 0
-    beq     .LBL1
-    add     10, VALUE
-.LBL1:
-    mul     2, VALUE
-    ret
-\end{lstlisting}
-
-Přepis kódu do pravděpodobnostně optimální podoby by obecně záležel na konkrétní situaci. V tomto případě lze provést invertování podmínky a návrat z funkčního volání o něco dříve při pozitivním scénáři. Jak lze vidět z kódu \ref{branch_2_c}, funkce je o něco delší. Za cenu delšího kódu byl získán takový sled instrukcí, ve kterém je výrazně menší pravděpodobnost skoku.
-\\
-
-\lstset{escapechar=@,style=customc}
-\begin{lstlisting}[caption=Funkce v jazyce C znázorňující nutnost skoku při splněné podmínce, label=branch_2_c]
-int testFunction(int value)
-{
-    value *= 2;
-  
-    if (!is_corner_case(value))
-    {
-        value += 2;
-        return value;
-    }
-
-    value += 10;
-    value *= 2;
-
-    return value;
-}
-\end{lstlisting}
-
-\lstset{escapechar=@,style=customasm}
-\begin{lstlisting}[caption=Pseudoassembly verze kódu \ref{branch_2_c}, label=branch_2_asm]
-testFunction(VALUE):
-    mul     2, VALUE
-    call    is_corner_case(VALUE)
-    cmp     %eax, 0
-    bne     .LBL1
-    add     2, VALUE
-    ret
-.LBL1:
-    add     10, VALUE
-    mul     2, VALUE
-    ret
-\end{lstlisting}
 
 Pokud je možné pravdivost podmínky alespoň s určitou pravděpodobností předpovědět, je vhodné kód přeuspořádat tak, aby byly minimalizovány skokové instrukce, tedy nutnost resetovat pipelining. Tento případ je totiž jedním z mála, který kompilátor nedovede s jistotou optimalizovat - v momentě kompilace totiž nelze strojově určit, zdali je některý scénář splnění podmínky více pravděpodobný. Některé kompilátory kombinované s vývojovým prostředím obsahují možnost tzv. \emph{profile-guided optimalizations}, které právě s pravděpodobností skoků pracují, a výsledný kód na základě nasbíraných dat optimalizují. Pro potřeby této práce je ale nutné znát hlavně fakt, že existují profilery, které četnosti scénářů splnění podmínky počítají a předávají je skrze vizualizační nástroj programátorovi.
 
@@ -237,11 +170,11 @@ Způsobů, jakými jsou získávána výkonnostní data, může být více. Mezi
 
 \subsection{Vzorkování}\label{subsec:sampling}
 
-Principem vzorkování se rozumí opakované snímkování stavu provádění programu. Každý snímek obsahuje data spojená s funkčním voláním a současným zanořením, hodnotu programového čítače a volitelně i další údaje, jako hodnotu ostatních registrů, informaci o vlákně, které kód vykonává, a další, spíše specifické údaje pro daný profiler.
+Principem vzorkování se rozumí opakované snímkování stavu provádění programu. Každý snímek obsahuje data spojená s funkčním voláním a současným zanořením, hodnotu programového čítače a volitelně i další údaje, jako hodnotu ostatních registrů, informaci o vlákně, které kód vykonává, a další údaje specifické pro daný profiler.
 
-Vzorky mohou být pořizovány různými způsoby. Starším přístupem je periodické vzorkování čistě na základě času, konkrétně pomocí hardwarového přerušení časovače (IRQ 0). To v první řadě dovolovalo použít vzorkovací mechanismus pro profiling. Nevýhodou byla ale poměrně obtížně definovatelná frekvence, jelikož bylo třeba zvolit přiměřenou granularitu vzorků tak, aby stále poskytovala dostatečně prokazatelná data. 
+Vzorky mohou být pořizovány různými způsoby. Starším přístupem je periodické vzorkování čistě na základě času, konkrétně pomocí hardwarového přerušení časovače (IRQ 0). Nevýhodou byla ale poměrně obtížně definovatelná frekvence, jelikož bylo třeba zvolit přiměřenou granularitu vzorků tak, aby stále poskytovala použitelná data, která korespondují se skutečností.
 
-Podstatné zlepšení přinesl koncept hardwarových výkonnostních čítačů (dále jen HPC), což jsou speciální registry procesoru, jejichž jediným účelem je uchovávat počet vybraných hardwarových událostí. Takovou událostí může být například provedení instrukce, výskyt cache-miss, nutnost pozastavit pipelining kvůli zamezení datovému hazardu (tzv. stalling), a další. Hardwarové výkonnostní čítače jsou ale vždy závislé na konkrétním modelu, popř. řadě procesorů, a ne vždy je k dispozici stejná sada. Problém rozdílnosti těchto sad čítačů řeší modul obecně označovaný jako \emph{perf events} (konkrétně u jádra GNU/Linux označováno jako \emph{Linux Kernel Performance Events Subsystem}) v jádře OS, který poskytuje jednotné rozhraní k používání HPC a přidává další události související například s jádrem OS\cite{perf1}.
+Podstatné zlepšení přinesl koncept hardwarových výkonnostních čítačů (dále jen HPC), což jsou speciální registry procesoru, jejichž jediným účelem je uchovávat počet vybraných hardwarových událostí. Takovou událostí může být například provedení instrukce, výskyt výpadků bloku vyrovnávací paměti CPU, nutnost pozastavit pipelining kvůli zamezení datovému hazardu (tzv. stalling), a další. Hardwarové výkonnostní čítače jsou ale vždy závislé na konkrétním modelu, popř. řadě procesorů, a ne vždy je k dispozici stejná sada. Problém rozdílnosti těchto sad čítačů řeší modul obecně označovaný jako \emph{perf events} (konkrétně u jádra GNU/Linux označováno jako \emph{Linux Kernel Performance Events Subsystem}) v jádře OS, který poskytuje jednotné rozhraní k používání HPC a přidává další události související například s jádrem OS\cite{perf1}.
 
 Přístup s HPC používá hardwarové přerušení NMI. To je generováno při každém přetečení některého z čítačů, jehož hodnotu sledujeme\cite{perf1}. NMI je specifické v tom, že je vyvoláváno i tehdy, když jsou přerušení momentálně zakázána. Taková situace nastává například přímo při zpracování některých tzv. blokujících přerušení. Je tedy možné provádět profiling i jádra samotného.
 
@@ -253,7 +186,7 @@ Tato volání mohou být buď integrována v čase kompilace přímo kompilátor
 
 \subsection{Interpretace}
 
-Podstatně rozdílným přístupem je pojetí zkompilovaného strojového kódu jako intermediate kód\footnote{meziformát určený pro zefektivnění interpretace, lze např. uvést \emph{bytecode} používaný v rámci Java Virtual Machine, nebo \emph{CIL} z prostředí .NET}, který je interpretován nad vlastním virtuálním strojem\cite{grind2}. Tento přístup dovoluje obalit kteroukoliv instrukci jakýmkoliv vlastním kódem, ovšem za cenu výrazného zpomalení běhu.
+Podstatně rozdílným přístupem je pojetí zkompilovaného strojového kódu jako intermediate kód\footnote{meziformát určený pro zefektivnění interpretace, lze např. uvést \emph{bytecode} používaný v rámci Java Virtual Machine, nebo \emph{CIL} z prostředí .NET}, který je interpretován nad virtuálním strojem\cite{grind2}. Tento přístup dovoluje obalit kteroukoliv instrukci jakýmkoliv vlastním kódem, ovšem za cenu výrazného zpomalení běhu.
 
 \subsection{Událostní profiling}
 
@@ -276,7 +209,7 @@ Nutnou podmínkou je tedy podpora v CPU pro výkonnostní čítače, které nás
 
 Samotný profiling je prováděn pomocí zaznamenávání těchto hardwarově vyvolávaných událostí přes buffer v jádře, a to buď do souboru (\texttt{perf record}) nebo přímo na výstup konzole (např. \texttt{perf top}).
 
-V případě použití \texttt{perf record} jsou zachycené události zapisovány do souboru s implicitním názvem \texttt{perf.data} (lze změnit parametrem). Jedná se o binární soubor obsahující všechny pořízené vzorky. Z takového souboru lze posléze extrahovat různé pohledy - \texttt{perf report} spustí textové rozhraní pro navigaci v rámci seznamu funkcí řazených podle četnosti výskytu zkoumané události, \texttt{perf annotate} sestaví disassembly, ke kterému v případě, že byly do binárního souboru zakompilovány debugovací symboly, připojí i namapovaný zdrojový kód, \texttt{perf diff} pro sestavení rozdílu mezi dvěma reporty, a další.
+V případě použití \texttt{perf record} jsou zachycené události zapisovány do souboru s implicitním názvem \texttt{perf.data}. Jedná se o binární soubor obsahující všechny pořízené vzorky. Z takového souboru lze posléze extrahovat různé pohledy - \texttt{perf report} spustí textové rozhraní pro navigaci v rámci seznamu funkcí řazených podle četnosti výskytu zkoumané události, \texttt{perf annotate} sestaví disassembly, ke kterému v případě, že byly do binárního souboru zakompilovány debugovací symboly, připojí i namapovaný zdrojový kód, \texttt{perf diff} pro sestavení rozdílu mezi dvěma reporty, a další.
 
 Ve výstupním souboru je obsažena hlavička a tři sekce. První sekcí je sekce s atributy, obsahující metainformace o vzorcích, druhou sekce se seznamem sledovaných událostí, a třetí sekce se samotnými vzorky nasbíraných za běhu\cite{perf2}.
 
@@ -291,7 +224,7 @@ Nevýhoda může být skryta ve výše zmíněném vzorkování. Jelikož je po�
 
 \section{gprof}\label{subsec:gprof}
 
-Gprof je nástroj rozdělený na dvě části - část v kompilátoru a část pro interpretaci dat. V podstatě zaujímá přesně opačné postavení oproti nástroji \emph{perf}. Namísto neinvazivního pozorování procesu na úrovni jádra OS a snímkování událostí z již dostupných zdrojů (HPC) je použita metoda instrumentace. Ta je metodou invazivní, tedy přímo mění instrukční tok při vstupu do bloku instrukcí náležícího každé funkci. Z toho plyne značné zpomalení běhu programu.
+Gprof je nástroj rozdělený na dvě části - část v kompilátoru a část pro interpretaci dat. V podstatě zaujímá přesně opačné postavení oproti nástroji \emph{perf}. Namísto neinvazivního pozorování procesu na úrovni jádra OS a snímkování událostí z již dostupných zdrojů (HPC) je použita metoda instrumentace. Ta je metodou invazivní, tedy přímo mění instrukční tok při vstupu do bloku instrukcí náležícího každé funkci. Z toho plyne značné zpomalení běhu analyzované aplikace.
 
 Jelikož \emph{gprof} nevyužívá přímo žádnou hardwarovou podporu, jsou prerekvizity čistě softwarové. Pro možnost profilovat tímto nástrojem je nutné mít nainstalovaný kompilátor, který dovede vložit potřebnou posloupnost instrukcí do každé z funkcí. Příkladem takového kompilátoru je \emph{gcc}. Na většině linuxových distribucí je zároveň třeba doinstalovat balík \emph{binutils}, kde je obsažen samotný nástroj pro intepretaci výstupu generovaného vloženými instrukcemi.
 
@@ -307,7 +240,7 @@ Funkce \texttt{profil()} nemusí být v daném OS dostupná. V případě, že d
 
 Pokud funkce \texttt{profil()} dostupná není, je využito služeb časovačů v jádře OS k zasílání signálů zkoumanému procesu, kam je dodatečně zakompilována i funkce, která tento signál obstarává. Výsledek zpracování tohoto signálu je v podstatě identický s výsledkem volání funkce \texttt{profil()}, jen v podstatně delším čase a s možným zpožděním kvůli režii přidané na generování a obstarávání signálu.
 
-Po spuštění aplikace zkompilované se zapravením výše uvedených funkcí, je generován soubor s implicitním názvem \texttt{gmon.out} (popř. \texttt{jmenoprogramu.out}), který obsahuje veškerá počítadla zaznamenaná po čas běhu. K jejich interpretaci je možné použít příkaz \texttt{gprof}.
+Po spuštění aplikace zkompilované se zapravením výše uvedených funkcí je generován soubor s implicitním názvem \texttt{gmon.out}, který obsahuje veškerá počítadla zaznamenaná po čas běhu. K jejich interpretaci je možné použít příkaz \texttt{gprof}.
 
 Tento soubor je binární, a kromě hlavičky může obsahovat až tři typy záznamů. Prvním záznamem je histogramový, který je zaznemenán voláním \texttt{profil()}, druhý je takzvaný \emph{call-graph record}, obsahující informaci o funkčním volání zaznamenaným pomocí \texttt{mcount()}. Třetí záznam, tzv. \emph{basic-block record}, může nahradit záznam histogramový, a to v případě, že byl použit \emph{line-by-line} mód, tedy speciální režim získávání dat, který spojuje vzorkovací volání ne s funkcemi, ale s jednotlivými řádky zdrojového kódu. Tato funkcionalita ale již v novějších verzích nástroje \emph{gprof} není obsažena\cite{gprof1}.
 
@@ -351,13 +284,13 @@ Nevýhody jsou opět poměrně stejné, jen nástroj \emph{OProfile} není obsa�
 
 \section{Callgrind a Cachegrind}
 
-Tyto dva nástroje jsou přítomny v jednom velkém balíku vývojářských ladících nástrojů \emph{valgrind} pro systémy unixového typu. Pod jednou sekcí jsou uvedeny proto, že funkcionalita nástroje \emph{cachegrind}, tedy profileru zaměřeným na efektivní využití CPU cache, je v této době ve velké míře již obsažena i v nástroji \emph{callgrind}, který se primárně staral pouze o statistiku volání funkcí a generování stromů volání.
+Tyto dva nástroje jsou přítomny v jednom velkém balíku vývojářských ladících nástrojů \emph{valgrind} pro systémy unixového typu. Pod jednou sekcí jsou uvedeny proto, že funkcionalita nástroje \emph{cachegrind}, tedy profileru zaměřeným na efektivní využití vyrovnávací paměti CPU, je v této době ve velké míře již obsažena i v nástroji \emph{callgrind}, který se primárně staral pouze o statistiku volání funkcí a generování stromů volání.
 
-Prvním kritériem pro provozování těchto nástrojů je samozřejmě operační systém - tím může být kterýkoliv z podporovaných OS unixového typu, tedy veškeré distribuce GNU/Linux na většině používaných architektur, Solaris, Android a Darwin (od verze 10.9 i MacOS X)\cite{grind1}. Dále je třeba mít nainstalovaný odpovídající balíček \emph{valgrind}, který obsahuje všechny přidružené nástroje, mezi kterými se objevuje právě i \emph{callgrind} a \emph{cachegrind}.
+Prvním kritériem pro provozování těchto nástrojů je samozřejmě operační systém - tím může být kterýkoliv z podporovaných OS unixového typu, tedy veškeré distribuce GNU/Linux na většině používaných architektur, Solaris, Android a Darwin (od verze 10.9 i MacOS X)\cite{grind1}. Dále je třeba mít nainstalovaný odpovídající balíček \emph{valgrind}, který obsahuje všechny přidružené nástroje, mezi kterými jsou právě i \emph{callgrind} a \emph{cachegrind}.
 
 \subsection*{Sběr dat}
 
-Narozdíl od profilerů z předchozích kapitol, \emph{callgrind} a \emph{cachegrind} (dále pouze souhrnně \emph{callgrind}) používají trochu nezvyklý způsob získávání výkonnostních dat - interpretací. To dovoluje každou instrukci obalit takřka libovolným kódem, který se v případě nástroje \emph{callgrind} stará o počítání funkčních volání, cache-miss nad simulovanou cache, počítání přístupů do paměti a dalších událostí. Skutečnost, že je kód nejprve interpretován, bohužel běh programu značně zpomaluje.
+Narozdíl od profilerů z předchozích kapitol, \emph{callgrind} a \emph{cachegrind} (dále pouze souhrnně \emph{callgrind}) používají trochu nezvyklý způsob získávání výkonnostních dat - interpretací. To dovoluje každou instrukci obalit takřka libovolným kódem, který se v případě nástroje \emph{callgrind} stará o počítání funkčních volání, počet výpadků bloku nad simulovanou vyrovnávací pamětí, počítání přístupů do paměti a dalších událostí. Skutečnost, že je kód nejprve interpretován, bohužel běh programu značně zpomaluje.
 
 Výsledkem je soubor \texttt{callgrind.out.PID}, kde \texttt{PID} je nahrazeno identifikátorem zkoumaného procesu. Jedná se o soubor, jehož obsahem je textová reprezentace záznamů existujících funkcí a všech funkcí z nich volaných včetně časů (zde označených jako \uv{cena}, jelikož vzhledem ke zpomalení generovaném interpretací nelze porovnávat samotné časy) a pozic, ze kterých byly volány. V hlavičce souboru se navíc nachází výčet všech zkoumaných veličin, které jsou v souboru obsaženy\cite{grind3}.
 
@@ -367,7 +300,7 @@ Výstup lze interpretovat použitím příkazu \texttt{callgrind\_annotate}, kte
 
 Výhodou z hlediska funkcionality je rozhodně způsob, jakým nástroj sbírá data. Je zaručeno, že pokud existuje nějaké slabé místo, a je nástrojem správně interpretováno, tak nezmeškáme jeho průchod, jako tomu mohlo být u nástrojů provádějících vzorkování. Dále je velkou výhodou podpora na poměrně široké škále operačních systémů.
 
-Velkou nevýhodou je ale zpomalení, které je vlivem interpretování kódu generováno. Původně strojový kód totiž nikdy není spuštěn přímo, ale přes další vrstvu, která umožňuje sběr dat. Další nevýhodou je, že je nutné interně určitý sortiment hardwarové funkcionality simulovat, aby došlo k detekci událostí v těchto místech. Typicky jde například o výskyt cache-miss, kdy musí \emph{callgrind} simulovat cache na úrovni programového kódu. Pokud bychom se mohli spoléhat na implementaci s identickým fungováním, pak by o nevýhodu nešlo. Existuje ale velké množství rozdílných architektur, a prakticky každá může danou funkcionalitu implementovat jinak. Proto se musíme spokojit s tím, že je tato simulace sice velmi blízko očekávanému modelu, ale nejde o její identickou implementaci.
+Velkou nevýhodou je ale zpomalení, které je vlivem interpretování kódu generováno. Původně strojový kód totiž nikdy není spuštěn přímo, ale přes další vrstvu, která umožňuje sběr dat. Další nevýhodou je, že je nutné interně určitý sortiment hardwarové funkcionality simulovat, aby došlo k detekci událostí v těchto místech. Typicky jde například o výskyt výpadků bloku paměti, kdy musí \emph{callgrind} simulovat vyrovnávací paměť na úrovni programového kódu. Pokud bychom se mohli spoléhat na implementaci s identickým fungováním, pak by o nevýhodu nešlo. Existuje ale velké množství rozdílných architektur, a prakticky každá může danou funkcionalitu implementovat jinak. Proto se musíme spokojit s tím, že je tato simulace sice velmi blízko očekávanému modelu, ale nejde o její identickou implementaci.
 
 
 
@@ -406,7 +339,7 @@ Pro používání těchto nástrojů je nutné mít nainstalován OS MS Windows 
 
 Metody sběru dat byly popsány již v kapitolách \ref{subsec:perf} (CPU sampling) a \ref{subsec:gprof} (Instrumentation). Metoda použitá ve sledování správy paměti v .NET aplikacích se principielně blíží nástrojům sady \emph{valgrind}, jen s tím rozdílem, že se v tomto případě jedná o interpretovaný intermediate kód i bez použití dalšího nástroje.
 
-Výstupem je soubor se sesbíranými daty, určený k prohlížení v rámci nástroje Visual Studio. Ten dovede vizualizovat interaktivní strom volání, vyhodnotit tzv. \uv{Hot Path}, tedy výkonnostně kritickou větev stromu volání, vyhodnotit funkce, které vykonáváním vlastního kódu (tedy bez volání ostatních funkcí) zabíraly největší procento času a další, spíše doplňkové funkce. Formát výstupního souboru má uzavřenou specifikaci. Možné je ale provést export zformátovaných dat do formátů CSV nebo XML, které obsahují potřebné údaje pro zrekonstruování pohledů. Tento export je ale ztrátový, a tak neumožňuje na základě obsažených dat vytvořit pohledy jiného charakteru.
+Výstupem je soubor se sesbíranými daty, určený k prohlížení v rámci nástroje Visual Studio. Ten dovede vizualizovat interaktivní strom volání, vyhodnotit tzv. \uv{kritickou cestu}, tedy výkonnostně kritickou větev stromu volání, vyhodnotit funkce, které vykonáváním vlastního kódu (tedy bez volání ostatních funkcí) zabíraly největší procento času a další, spíše doplňkové funkce. Formát výstupního souboru má uzavřenou specifikaci. Možné je ale provést export zformátovaných dat do formátů CSV nebo XML, které obsahují potřebné údaje pro zrekonstruování pohledů. Tento export je ale ztrátový, a tak neumožňuje na základě obsažených dat vytvořit pohledy jiného charakteru.
 
 \subsection*{Výhody a nevýhody}
 
@@ -451,7 +384,7 @@ Od ostatních výše uvedených nástrojů se liší hlavně tím, že nejde pou
 
 Analyzované nástroje implementují tři různé způsoby sběru výkonnostních dat (shrnuto v tabulce \ref{table:profmethods}). Prvním je vzorkování, tedy neinvazivní snímkování zásobníku a registrů, které sice výrazně nezpomaluje běh zkoumaného programu, ale nemusí poskytovat stoprocentně přesná data. Druhým je instrumentace, čili zakompilování diagnostických volání přímo do programu, což zpomaluje běh podstatně více, ale poskytuje to často velmi přesný přehled o provádění každého funkčního volání - u těchto nástrojů musíme operace konkretizovat na volání funkcí (metod). Třetím způsobem je interpretování spustitelného souboru \uv{virtuálním strojem}, kde můžeme zkoumat prakticky libovolnou veličinu, ale běh programu je zpomalen za produkčně únosnou mez.
 
-Výrazně se tedy liší situace, kdy je který nástroj vhodné použít. Nemusí však jít pouze o rozdílné druhy software - můžeme zkoumat stejný software, jen z jiného úhlu pohledu. Z tohoto důvodu je třeba, aby bylo možné nasbírané informace vizualizovat ideálně v jednotné formě. To by mimo jiné dovolilo vývojáři porovnat výsledky nad normalizovaným pohledem, a tedy by mohlo vést ke spolehlivějšímu odhalení bottlenecku. V případě všech headless\footnote{systémy bez nainstalovaného grafického prostředí, často pouze se vzdáleným terminálovým přístupem} systémů může být problémem i to, že pokud požadujeme pokročilejší vizualizační techniky, je nutné mít nainstalované grafické prostředí, což není na většině serverů obvyklé. Mimo to lze sice vygenerovat nějaké statické výstupy (např. ve formátu SVG), ale ty se často liší od různých nástrojů - tedy buď úplně chybí, nebo nemají jednotnou formu.
+Výrazně se tedy liší situace, kdy je který nástroj vhodné použít. Nemusí však jít pouze o rozdílné druhy software - můžeme zkoumat stejný software, jen z jiného úhlu pohledu. Z tohoto důvodu je třeba, aby bylo možné nasbírané informace vizualizovat ideálně v jednotné formě. To by mimo jiné dovolilo vývojáři porovnat výsledky nad normalizovaným pohledem, a tedy by mohlo vést ke spolehlivějšímu odhalení slabých míst. V případě všech headless\footnote{systémy bez nainstalovaného grafického prostředí, často pouze se vzdáleným terminálovým přístupem} systémů může být problémem i to, že pokud požadujeme pokročilejší vizualizační techniky, je nutné mít nainstalované grafické prostředí, což není na většině serverů obvyklé. Mimo to lze sice vygenerovat nějaké statické výstupy (např. ve formátu SVG), ale ty se často liší od různých nástrojů - tedy buď úplně chybí, nebo nemají jednotnou formu.
 
 Dalším zřejmým problémem je dostupnost napříč různými operačními systémy (znázorněno v tabulce \ref{table:profoss}). Tento problém sice nelze efektivně vyřešit, ale je možné poskytnout takovou vizualizaci dat, která na operačním systému závislá nebude.
 
@@ -513,7 +446,7 @@ Před analyzováním jednotlivých pohledů je třeba nadefinovat dva pojmy - \e
 
 \section{Flat view}
 
-Flat view, jinak nazývaný i \uv{function view}, je prostý seznam funkcí s četností jejich volání, inkluzivním a exkluzivním časem (popř. vzorky). Jedná se o nejjednodušší pohled, který lze vygenerovat, a často je dostačující pro detekci možných bottlenecků. Postrádá ale kontext. Například nelze vydedukovat poměr počtu volání a náročnosti funkce. Nelze tedy přímo zjistit, zdali je třeba optimalizovat počet volání, nebo tělo funkce.
+Flat view, jinak nazývaný i \uv{function view}, je prostý seznam funkcí s četností jejich volání, inkluzivním a exkluzivním časem (popř. vzorky). Jedná se o nejjednodušší pohled, který lze vygenerovat, a často je dostačující pro detekci možných slabých míst. Postrádá ale kontext. Například nelze vydedukovat poměr počtu volání a náročnosti funkce. Nelze tedy přímo zjistit, zdali je třeba optimalizovat počet volání, nebo tělo funkce.
 
 Z tohoto pohledu tedy lze vydedukovat pouze základní problémy a hodí se pouze pro jednoduché programy bez většího množství funkcí. V takových případech lze často kontext vypustit, jelikož je zřejmé, odkud je která funkce volaná.
 
@@ -528,7 +461,7 @@ Z tohoto pohledu tedy lze vydedukovat pouze základní problémy a hodí se pouz
 
 \section{Hierarchical view}
 
-Hierarchický pohled (také \emph{call tree}, \emph{strom volání}) přidává kontext do předchozího případu. Konkrétně jde o dedukování, která funkce volala kterou, tedy je možné snáze identifikovat možný výkonnostní problém, pokud není přímo ve volané funkci, ale v kontextu okolo.
+Hierarchický pohled (také \emph{call tree}, \emph{strom volání}) přidává kontext do předchozího případu. Konkrétně jde o údaje o funkčním volání, tedy je možné snáze identifikovat možný výkonnostní problém, pokud není přímo ve volané funkci, ale v kontextu větve stromu volání.
 
 Tento pohled výrazně rozšiřuje množinu identifikovatelných problémů. Příkladem problému, který odhalí tento pohled navíc oproti \emph{flat view}, je například ten, kdy máme poměrně náročnou funkci, která je volaná z mnoha míst v celém programu. Pokud je ale někde chybně volána častěji, než je nezbytně nutné, bude velké procento volání (popř. vzorků, tráveného času) zvýrazňovat místo problému.
 
@@ -541,12 +474,12 @@ Tento pohled výrazně rozšiřuje množinu identifikovatelných problémů. Př
 
 \section{Graph view}
 
-Grafový pohled je grafickým vylepšením pohledu hierarchického. Výhodou je možnost vidět všechny vazby naráz, bez duplikace jednotlivých funkcí v několika větvích stromu.
+Grafový pohled je grafickým vylepšením pohledu hierarchického. Výhodou je možnost vidět všechny vazby současně, bez duplikace jednotlivých funkcí v několika větvích stromu.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[interpolate,width=0.5\textwidth]{img/prof_graph.png}
-    \caption{Graph view s vyznačenou \emph{hot path}, Zdroj: \url{http://claudiovz.github.io/scipy-lecture-notes-ES/advanced/optimizing/index.html} }
+    \includegraphics[interpolate,width=0.62\textwidth]{img/prof_graph.png}
+    \caption{Graph view s vyznačenou \emph{kritickou cestou}, Zdroj: \url{http://claudiovz.github.io/scipy-lecture-notes-ES/advanced/optimizing/index.html} }
     \label{obr:gview}
 \end{figure}
 
@@ -580,14 +513,14 @@ Takový graf ale vzhledem ke své obsáhlosti musí být buď dostatečně velk�
     \label{obr:flamegr}
 \end{figure}
 
-\subsection{Detailed graph}
+\subsection{Detailní pohled}
 
 Variací \emph{flame graph} pohledu je tzv. detailní pohled. Ten pouze zužuje celkový pohled na výběr třech po sobě jdoucích úrovní. U takového pohledu je tedy nutná jistá interaktivita, která spočívá v možnosti procházet jednotlivé úrovně klikáním. Dále může být připojen výpis programového kódu se zvýrazněnými částmi, které jsou z hlediska výkonu významné.
 
 \begin{figure}[h]
     \centering
     \includegraphics[interpolate,width=1.0\textwidth]{img/prof_detailgraph.png}
-    \caption{Detailed view generovaný nástrojem VSPerf}
+    \caption{Detailní pohled generovaný nástrojem VSPerf}
     \label{obr:detailview}
 \end{figure}
 
@@ -617,9 +550,9 @@ Výhodou takového grafu může být zejména viditelnost tendence. Na základě
 
 Způsobů vizualizace existuje poměrně velké množství, z velké části jde ale o modifikaci nebo kombinaci způsobů výše uvedených. Každý pohled zvýrazňuje trochu jinou informaci, přičemž záleží vždy na konkrétním případu užití, jak je interpretována. Proto je důležité mít k dispozici co možná nejširší škálu různých pohledů.
 
-Také je vhodné řešit, jakým způsobem, tedy pomocí jakého \uv{média} bude výsledek předán vývojáři. Velká část nástrojů poskytuje výsledky v textové formě, čili snadno zobrazitelné kteroukoliv konzolí. Některé nástroje obsahují vlastní GUI, které je ovšem často závislé na platformě nebo grafickém prostředí. Dále malá skupina nástrojů poskytuje možnost exportovat výsledek do nějakého známého obrazového formátu - typicky PNG nebo SVG.
+Také je vhodné řešit, jakým způsobem, tedy pomocí jakého \uv{média} bude výsledek předán vývojáři. Velká část nástrojů poskytuje výsledky v textové formě, čili snadno zobrazitelné kteroukoliv konzolí. Některé nástroje obsahují vlastní grafické uživatelské rozhraní (GUI), které je ovšem často závislé na platformě nebo grafickém prostředí. Dále malá skupina nástrojů poskytuje možnost exportovat výsledek do nějakého známého obrazového formátu - typicky PNG nebo SVG.
 
-V rámci této práce bude realizován výstup do pohledů \emph{flat view}, \emph{hierarchical view}, \emph{flame graph}, a budou prozkoumány možnosti \emph{heat map} pohledu pro potřeby profilingu. Dále bude zahrnuta vizualizace do formy webové prezentace, tedy za použití technologií HTML, CSS a Javascript. Zároveň bude dodržena podobná modularita jako u vstupů, tedy bude možné kdykoliv přidat další \uv{médium} jen přidáním modulu.
+V rámci této práce bude realizován výstup do pohledů \emph{flat view}, \emph{hierarchical view}, \emph{call graph} a \emph{flame graph}. Dále bude zahrnuta vizualizace do formy webové prezentace, tedy za použití technologií HTML, CSS a Javascript. Zároveň bude dodržena podobná modularita jako u vstupů, tedy bude možné kdykoliv přidat další \uv{médium} jen přidáním modulu.
 
 
 \newpage
@@ -648,7 +581,7 @@ Tento nástroj poskytuje pouze GUI, opět tedy není přítomna žádná možnos
 
 \section{GProf2dot}
 
-Poměrně cenným nástrojem v oblasti vizualizace profilingových dat je \emph{gprof2dot}. Původně dokázal zpracovat pouze výstupy nástroje \emph{gprof}, postupně byla podpora rozšířena na širokou škálu profilerů zahrnujících \emph{perf}, \emph{OProfile}, \emph{callgrind}, i například \emph{Very Sleepy}. Jelikož se jedná o skript psaný v jazyce Python, jeho přenositelnost je podmíněná existencí interpretu pro danou platformu, a také několika málo závislostmi. Oficiálně jsou podporovány OS MS Windows a GNU/Linux. Výstupem je vždy pouze \emph{graph view}, který lze poměrně ve velké míře přizpůsobovat.
+Poměrně cenným nástrojem v oblasti vizualizace profilingových dat je nástroj \emph{gprof2dot}. Původně dokázal zpracovat pouze výstupy nástroje \emph{gprof}, postupně byla podpora rozšířena na širokou škálu profilerů zahrnujících \emph{perf}, \emph{OProfile}, \emph{callgrind}, i například \emph{Very Sleepy}. Jelikož se jedná o skript psaný v jazyce Python, jeho přenositelnost je podmíněná existencí interpretu pro danou platformu, a také několika málo závislostmi. Oficiálně jsou podporovány OS MS Windows a GNU/Linux. Výstupem je vždy pouze \emph{graph view}, který lze poměrně ve velké míře přizpůsobovat.
 
 Nástroj sice neposkytuje GUI, zato výstupem je obrázek v rastrovém nebo vektorovém formátu.
 
@@ -672,7 +605,9 @@ Obsahem následující kapitoly bude návrh takového nástroje, který poskytne
 
 Účelem nástroje bude načítat profilingová data z výstupních souborů známých profilerů, analyzovat je a následně vizualizovat pomocí vybraného výstupního modulu. Jedním z hlavních požadavků je i modularita nástroje, která bude spočívat ve členění na tři hlavní skupiny modulů, jak je znázorněno na obrázku \ref{obr:systemmodules}. První částí je pevný základ, tedy samotná spustitelná část. Ta bude přejímat požadavky od uživatele, vybírat vstupní modul, analyzovat data a předávat je výstupnímu modulu. Druhou skupinou jsou vstupní moduly - pro každý formát bude existovat právě jeden vstupní modul. Tyto moduly se budou starat o načtení dat, transformaci do jednotné formy a předání zpět do jádra nástroje. Poslední skupinou jsou výstupní moduly, kterým jsou předána analyzovaná data opět v jednotné formě. Tyto moduly na základě vstupních parametrů od uživatele poskytnou požadovaný výstup.
 
-Aplikace bude pouze konzolová. Tím je odbourána závislost na jakémkoliv grafickém prostředí.
+Tato úroveň dělení je výhodná zejména proto, že je možné přesně oddělit jednotlivé části procesu zpracování. Vstupní moduly odstiňují závislost na konkrétním typu a formátu vstupních dat. Do další části procesu poskytují normalizovaná data. Analyzér, jakožto součást jádra, se zde stará o hlavní logiku a finální vyrovnání dat tak, aby bylo možné poskytnout maximální množství podporovaných výstupů. To nastává v momentě, že určitá data potřebná pro nějaký pohled nejsou dostupná přímo z formátu, ale lze je snadno dopočíst z dat, která dostupná jsou. Poslední částí jsou výstupní moduly, které pouze převezmou již zpracovaná data a převedou je na sadu výstupů dle implementovaného formátu.
+
+Aplikace bude obsahovat pouze konzolové rozhraní. Tím je odbourána závislost na jakémkoliv grafickém prostředí.
 
 \begin{figure}[h]
     \centering
@@ -683,7 +618,7 @@ Aplikace bude pouze konzolová. Tím je odbourána závislost na jakémkoliv gra
 
 \section{Základ systému}
 
-Tato skupina modulů bude představovat spustitelný program. Moduly základu budou tedy pevně svázány po čase kompilace, tedy nebudou fyzicky oddělitelné. To z důvodu, že je nutné mezi nimi zajistit maximální kompatibilitu, kterou lze do jisté míry zaručit při sestavení.
+Tato skupina modulů bude představovat spustitelný program. Moduly základu budou tedy pevně svázány v čase kompilace, tedy nebudou fyzicky oddělitelné. To z důvodu, že je nutné mezi nimi zajistit maximální kompatibilitu, kterou lze zaručit při sestavení.
 
 \subsection{Jádro}
 
@@ -734,7 +669,7 @@ Tento nástroj byl v rámci bakalářské práce implementován. Následující 
 
 \chapter{Implementace nástroje}
 
-Cílem této kapitoly je popsat a vysvětlit důležité části v implementaci navrženého nástroje. Schéma systému bylo dodrženo a plně koresponduje s návrhem, proto bude tato kapitola členěna obdobně, jako předchozí. Zároveň budou popsány konkrétní moduly, které byly v rámci této práce vytvořeny, a v případě výstupního modulu i realizované vizualizační techniky.
+Cílem této kapitoly je popsat a vysvětlit důležité části v implementaci navrženého nástroje. Schéma systému plně koresponduje s návrhem, proto bude tato kapitola členěna obdobně, jako předchozí. Zároveň budou popsány konkrétní moduly, které byly v rámci této práce vytvořeny, a v případě výstupního modulu i realizované vizualizační techniky.
 
 Nástroj nese název Profiler-Independent Visual Output (zkr. PIVO).
 
@@ -752,7 +687,7 @@ V rámci jádra je realizován i systém logování, který je dostupný prostř
 
 \subsection{Analyzér}\label{subsec:analyzer}
 
-Tato část systému se stará výhradně o post-processing dat, která jsou poskytnuta vstupním modulem. V závislosti na podporovaných funkcích vstupního a výstupního modelu je provedena analýza, která v současné době zahrnuje výpočet procentuální hodnoty exkluzivního času (resp. počtu vzorků), možnost na základě flat view a call graph dat spočítat inkluzivní čas (resp. počet vzorků; pokud modul neohlásí, že se o tuto funkcionalitu stará sám), a dále předzpracovat flat view tak, aby byl v počátku seřazen podle exkluzivního času (resp. počtu vzorků) a počtu volání.
+Tato část systému se stará výhradně o pozpracování dat, která jsou poskytnuta vstupním modulem. V závislosti na podporovaných funkcích vstupního a výstupního modulu je provedena analýza, která v současné době zahrnuje výpočet procentuální hodnoty exkluzivního času (resp. počtu vzorků), možnost na základě flat view a call graph dat spočítat inkluzivní čas (resp. počet vzorků; pokud modul neohlásí, že se tuto funkcionalitu implementuje sám), a dále předzpracovat flat view tak, aby byl v počátku seřazen podle exkluzivního času (resp. počtu vzorků) a počtu volání.
 
 Analyzér pracuje pouze s takovými daty, jejichž typ vstupní modul ohlásil naplněním příslušného příznaku ve struktuře \texttt{IMF\_SET}. Také bere v potaz schopnosti výstupního modulu, který naplněním stuktury \texttt{OMF\_SET} ohlásí typ dat, jež je schopen vizualizovat. Tyto struktury dovolují jak sjednotit možné drobné odchylky v chápání dat, tak možnost omezit se pouze na analýzu takových dat, které půjde předat uživateli.
 
@@ -760,7 +695,7 @@ Analyzér pracuje pouze s takovými daty, jejichž typ vstupní modul ohlásil n
 
 Inkluzivní čas lze vypočítat pouze za předpokladu, že má algoritmus k dispozici jak hodnoty exkluzivního času, tak údaje o kontextu funkčního volání. Za předpokladu, že máme k dispozici plnou hierarchii volání, lze inkluzivní čas vypočítat pouhým postupným přičítáním vzorků do všech úrovní hierarchie. To se děje v případě analýzy formátu \emph{perf} a řeší to sám vstupní modul při získávání stromu volání.
 
-Pokud není k dispozici plná hierarchie volání, ale pouze dvojice adres, z nichž jedna se nachází v těle volající a druhá v těle volané funkce, je třeba zvolit přístup jiný. Taková data jsou prozměnu typická pro profilování pomocí instrumentace, kde je zástupcem například nástroj \emph{gprof}. Jak bylo v kapitole \ref{subsec:gprofgather} uvedeno, pro každou dvojici adres funkčního volání je zaznamenán \emph{call-graph record}, který krom samotných adres obsahuje ještě počet, kolikrát bylo takové funkční volání provedeno. Z těchto dat je nutné zrekonstruovat graf volání a poté na základě počtu volání a exkluzivního času volané funkce poměrovně vyhodnotit inkluzivní čas.
+Pokud není k dispozici plná hierarchie volání, ale pouze dvojice adres, z nichž jedna se nachází v těle volající a druhá v těle volané funkce, je třeba inkluzivní čas dopočítat jiným způsobem. Taková data jsou prozměnu typická pro profilování pomocí instrumentace, kde je zástupcem například nástroj \emph{gprof}. Jak bylo v kapitole \ref{subsec:gprofgather} uvedeno, pro každou dvojici adres funkčního volání je zaznamenán \emph{call-graph record}, který kromě samotných adres také obsahuje, kolikrát bylo takové funkční volání provedeno. Z těchto dat je nutné zrekonstruovat graf volání a poté na základě počtu volání a exkluzivního času volané funkce poměrově vyhodnotit inkluzivní čas.
 
 \begin{figure}[htp] \centering{
 \includegraphics[scale=0.65]{img/impl_callgraph_example.pdf}}
@@ -774,35 +709,35 @@ Mějme například graf volání znázorněný na obrázku \ref{obr:callgraph_ex
 \caption{Invertovaný a ohodnocený graf volání}\label{obr:callgraph_ex_rev}
 \end{figure}
 
-V posledním kroku je pro každý uzel spuštěn algoritmus DFS, který postupně přiděluje redukovaný exkluzivní čas volané funkce všem v hierarchii nad ní. Opět lze předvést na funkci \texttt{callee()}, kde celkový exkluzivní čas je roven $2.3$s. Ten je algoritmem propagován do uzlu \texttt{caller\_1()} jako $2.3*0.5$, tedy $1.15$s. Algoritmus pokračuje zanořením do funkce \texttt{main()}, kde je tento časový příspěvek redukován koeficientem hrany mezi \texttt{caller\_1()} a \texttt{main()} jako $1.15*0.3333$, tedy (po zaokrouhlení) $0.3833$s. Takto je expandován každý uzel grafu, kde počáteční hodnotou je vždy exkluzivní čas daného uzlu. Výsledný inkluzivní čas uzlu je pak součtem všech takto propagovaných příspěvků od volaných funkcí a vlastního exkluzivního času.
+V posledním kroku je pro každý uzel spuštěn algoritmus procházení do hloubky (DFS), který postupně přiděluje redukovaný exkluzivní čas volané funkce všem v hierarchii nad ní. Opět lze předvést na funkci \texttt{callee()}, kde celkový exkluzivní čas je roven $2.3$s. Ten je algoritmem propagován do uzlu \texttt{caller\_1()} jako $2.3*0.5$, tedy $1.15$s. Algoritmus pokračuje zanořením do funkce \texttt{main()}, kde je tento časový příspěvek redukován koeficientem hrany mezi \texttt{caller\_1()} a \texttt{main()} jako $1.15*0.3333$, tedy (po zaokrouhlení) $0.3833$s. Takto je expandován každý uzel grafu, kde počáteční hodnotou je vždy exkluzivní čas daného uzlu. Výsledný inkluzivní čas uzlu je pak součtem všech takto propagovaných příspěvků od volaných funkcí a vlastního exkluzivního času.
 
-Zde může působit problémy rekurze, jelikož vytváří v grafu kružnici. Algoritmus je sice opatřen bezpečnostním mechanismem pro detekci kružnice v podobě značení vrcholů jako navštívených, ale v takovém případě se poté nemusí chovat korektně výpočet inkluzivního času, jelikož je i přesto redukován každou z hran v rekurzivním volání a v určitých případech není výsledkem správné číslo. Přímá rekurze problémem není, jelikož bezpečnostní mechanismus by nedovolil expandovat sebe sama, a tedy nějak znehodnotit výpočet. Problémy působí hlavně rekurze nepřímá, a to v případě, že nemá jednotný \uv{vstupní bod}. Typickým příkladem je parsování výrazu rekurzivním sestupem, kde můžou být tvořeny různé kružnice v grafu volání, a to často s různými vstupními body. V takovém případě se musí inkluzivní čas v rámci kružnice propagovat neredukovaný, aby bylo dosaženo přesnějšího výsledku.
+Zde může působit problémy rekurze, jelikož vytváří v grafu kružnici. Algoritmus je sice opatřen bezpečnostním mechanismem pro detekci kružnice v podobě značení vrcholů jako navštívených, ale v takovém případě se poté nemusí chovat korektně výpočet inkluzivního času, jelikož je i přesto redukován každou z hran v rekurzivním volání a v určitých případech není výsledkem číslo korespondující se skutečností. Přímá rekurze problémem není, jelikož bezpečnostní mechanismus by nedovolil expandovat sebe sama, a tedy nějak znehodnotit výpočet. Problémy působí hlavně rekurze nepřímá, a to v případě, že nemá jednotný \uv{vstupní bod}. Typickým příkladem je zpracování výrazu rekurzivním sestupem, kde můžou být tvořeny různé kružnice v grafu volání, a to často s různými vstupními body. V rámci kružnice se pak nesmí inkluzivní čas redukovat, aby bylo dosaženo přesnějšího výsledku.
 
-Pro tyto případy byl implementován algoritmus detekce silně souvislých komponent, konkrétně Tarjanův algoritmus. Ten je pouze modifikovanou variantou algoritmu DFS, která všem uzlům přidělí unikátní identifikátor komponenty, do které patří - na počátku je tedy počítáno s tím, že každý uzel patří do své vlastní silně souvislé komponenty a algoritmus bude pouze komponenty spojovat. Při procházení grafu do hloubky se uzly značí jako navštívené, a pokud algoritmus narazí na již navštívený uzel, propaguje zpětně identifikátor jeho komponenty až do úplného vynoření do onoho uzlu. Tím zařadí celou cestu do jedné silně souvislé komponenty. V případě vícenásobné kružnice, tedy takového podgrafu, který jako podgraf obsahuje více kružnic s neprázdným průnikem množin vrcholů, je za silně souvislou komponentu považováno sjednocení všech vrcholově nedisjunktních podgrafů - kružnic.
+Pro tyto případy byl implementován algoritmus detekce silně souvislých komponent, konkrétně Tarjanův algoritmus. Ten je pouze modifikovanou variantou algoritmu DFS, která všem uzlům přidělí unikátní identifikátor komponenty, do které patří - na počátku je tedy počítáno s tím, že každý uzel patří do své vlastní silně souvislé komponenty a algoritmus bude pouze komponenty spojovat. Při procházení grafu do hloubky se uzly značí jako navštívené, a pokud algoritmus narazí na již navštívený uzel, propaguje zpětně identifikátor jeho komponenty až do úplného vynoření do zdrojového uzlu. Tím zařadí celou cestu do jedné silně souvislé komponenty. V případě vícenásobné kružnice, tedy takového podgrafu, který jako podgraf obsahuje více kružnic s neprázdným průnikem množin vrcholů, je za silně souvislou komponentu považováno sjednocení všech vrcholově nedisjunktních podgrafů - kružnic.
 
 \section{Vstupní moduly}
 
-Vstupní modul musí být kompilován jako dynamická knihovna, která implementuje funkce \texttt{CreateInputModule()} a \texttt{RegisterLogger()}. Funkce \texttt{CreateInputModule()} vytváří novou instanci třídy vstupního modulu, která vždy dědí od abstraktní třídy \texttt{InputModule} a implementuje její čistě virtuální metody. Funkce \texttt{RegisterLogger()} přejímá jako parametr ukazatel na funkci, která představuje logovací funkci v jádře.
+Vstupní modul je kompilován jako dynamická knihovna, která implementuje funkce \texttt{CreateInputModule()} a \texttt{RegisterLogger()}. Funkce \texttt{CreateInputModule()} vytváří novou instanci třídy vstupního modulu, která vždy dědí od abstraktní třídy \texttt{InputModule} a implementuje její čistě virtuální metody. Funkce \texttt{RegisterLogger()} přejímá jako parametr ukazatel na funkci, která představuje logovací funkci v jádře.
 
-Jádro přenechává veškerou logiku získávání dat vstupnímu modulu, a proto se každý vstupní modul stará sám i o validaci vstupů, případně obsahu vstupních souborů. Typicky je sice na vstupu právě jeden soubor, ale obecně to tak neplatí - například nástroj \emph{OProfile} generuje celou adresářovou strukturu.
+Jádro přenechává veškerou logiku získávání dat vstupnímu modulu, a proto i každý vstupní modul sám validuje vstupy, případně obsah vstupních souborů. Typicky je sice na vstupu právě jeden soubor, ale obecně to tak neplatí - například nástroj \emph{OProfile} generuje celou adresářovou strukturu.
 
 Data jsou předávána jádru pomocí implementovaných virtuálních metod abstraktní třídy \texttt{InputModule}, konkrétně se jedná o metody:
 
 \begin{itemize}
-\item \texttt{ReportName()} - ohlášení názvu vstupního modulu
-\item \texttt{ReportVersion()} - ohlášení verze vstupního modulu
-\item \texttt{ReportFeatures()} - ohlášení featur modulu předáním struktury\\ \texttt{IMF\_SET}
+\item \texttt{ReportName()} - ohlášení názvu vstupního modulu (pro možnost vložení do výstupu a do logů)
+\item \texttt{ReportVersion()} - ohlášení verze vstupního modulu (pro možnost vložení do výstupu a do logů)
+\item \texttt{ReportFeatures()} - ohlášení vlastností modulu předáním struktury\\ \texttt{IMF\_SET}
 \item \texttt{LoadFile()} - načtení vstupní cesty
 \item \texttt{GetFunctionTable()} - získání tabulky funkcí
-\item \texttt{GetClassTable()} - získání tabulky tříd (zatím není podporováno žádným z modulů)
-\item \texttt{GetFlatProfileData()} - získání základních profilingových dat (flat view)
+\item \texttt{GetClassTable()} - získání tabulky tříd
+\item \texttt{GetFlatProfileData()} - získání flat view dat
 \item \texttt{GetCallGraphMap()} - získání call graph struktury v podobě dvojic indexů funkcí z tabulky funkcí a počtem volání
 \item \texttt{GetCallTreeMap()} - získání call tree struktury v podobě seznamu sousednosti
 \end{itemize}
 
 Typicky je v metodě \texttt{LoadFile()} načten celý vstupní soubor (resp. adresářová struktura) a jsou vyextrahována potřebná data. Následně jsou pomocí \texttt{Get}-metod pouze předány jádru.
 
-Co se týká jednotlivých featur modulu, jsou definovány v enumerátoru \texttt{InputModuleFeatures} takto:
+Co se týká jednotlivých vlastností modulu předávaných ve struktuře \texttt{IMF\_SET}, jsou definovány v enumerátoru \texttt{InputModuleFeatures} takto:
 
 \begin{itemize}
 \item \texttt{IMF\_FLAT\_PROFILE} - podpora flat view a přidružených featur (exkluzivní čas, apod.)
@@ -812,19 +747,19 @@ Co se týká jednotlivých featur modulu, jsou definovány v enumerátoru \textt
 \item \texttt{IMF\_USE\_SECONDS} - modul používá jednotky času (vteřiny), tedy ne počet vzorků
 \end{itemize}
 
-Krom ohlašování podporovaných funkcionalit tedy může předávaná struktura featur obsahovat i nějaký přepínač, jakým je například \texttt{IMF\_USE\_SECONDS}. Ten se stará o to, že jako profilovací jednotku nebude používat bezrozměrné jednotky, které znamenají počet \uv{přistižení} funkce v hierarchii volání, ale jednotky času - zde konkrétně sekundy. Na výpočty ale tato změna nemá vliv, pouze na výstupní formátování a popisky.
+Kromě ohlašování podporovaných funkcionalit může předávaná struktura obsahovat i přepínač, jakým je například \texttt{IMF\_USE\_SECONDS}. Ten se stará o to, že jako profilovací jednotku nebude používat bezrozměrné jednotky, které znamenají počet \uv{přistižení} funkce v hierarchii volání, ale jednotky času - zde konkrétně sekundy. Na výpočty ale tato změna nemá vliv, pouze na výstupní formátování a popisky.
 
 Vstupní moduly také musí počítat s mapováním adres na názvy funkcí, a to za pomoci tzv. symbolů. Symboly jsou ve své podstatě pouze adresy označené názvem. Rozsah symbolu, tedy spodní a horní ohraničení např. funkce, je dán rozdílem adres v seřazené posloupnosti symbolů. Implementované moduly využívají nástroje \texttt{nm}, který je na linuxových distribucích součástí balíku \texttt{binutils}.
 
 \subsection{Vstupní modul - gprof}
 
-Načítání výstupního souboru nástroje \emph{gprof} probíhá ve standardních etapách. Jako první je načtena hlavička souboru s profilingovými daty, je validována \uv{magic} značka\footnote{krátký identifikátor na začátku souboru, slouží k prvotnímu ověření správnosti očekávaného formátu} a podporovaná verze. Modul podporuje verzi formátu 1, jelikož se jedná o přibližně 10 let používaný ustálený formát. Předcházela verze 0, která obsahuje pouze některé informace navíc v \emph{basic block} záznamech.
+Načítání výstupního souboru nástroje \emph{gprof} probíhá ve dvou etapách. Jako první je načtena hlavička souboru s profilingovými daty, je validována \uv{magic} značka\footnote{krátký identifikátor na začátku souboru, slouží k prvotnímu ověření správnosti očekávaného formátu} a podporovaná verze. Modul podporuje verzi formátu 1, jelikož se jedná o přibližně 10 let používaný ustálený formát. Předcházela verze 0, která obsahuje v \emph{basic block} záznamech navíc informace, které nejsou na současných systémech relevantní.
 
-Po validaci metadat následuje samotné čtení záznamů. Každý záznam je na začátku opatřen tzv. \emph{tagem}, který určuje, o jaký záznam se jedná. Poté je další čtení rozřazeno dle přečteného tagu.
+Po validaci metadat následuje samotné čtení záznamů. Každý záznam je na začátku opatřen značkou (tzv. \emph{tagem}), což je číselný identifikátor, který určuje, o jaký záznam se jedná. Poté je další čtení rozřazeno dle přečtené značky.
 
 \subsubsection*{Histogramové záznamy}
 
-Z histogramového záznamu je přečteno rozmezí adres vymezených začátkem a koncem, počet jednotlivých \emph{binů} a další údaje potřebné později. Histogramové záznamy by se neměly překrývat částečně - buď bude existovat více záznamů pro identický rozsah adres, nebo se záznamy nebudou překrývat vůbec. Po přečtení je tedy validováno překrývání, rozlišení - tedy jestli se nezměnil počet \emph{binů}, jestli se nezměnila jednotka apod. Následuje rozdělení naměřených hodnot do interní kopie \emph{binů} (pro případ překrývání) a tím je načítání u konce.
+Z histogramového záznamu je přečteno rozmezí adres vymezených začátkem a koncem, počet jednotlivých \emph{binů}\footnote{čítač vztahující se na přesný rozsah adres} a údaje o parametrech profilingového sezení potřebné pro pozdější výpočet času. Histogramové záznamy musí být rozsahem adres navzájem buď identické, nebo disjunktní. Po přečtení je tedy validováno překrývání, rozlišení - tedy jestli se nezměnil počet \emph{binů}, jestli se nezměnila jednotka apod. Následuje rozdělení naměřených hodnot do interní kopie \emph{binů} (pro případ více záznamů pro identický rozsah adres) a tím je načítání u konce.
 
 Po načtení jsou záznamy zpracovány do podoby flat profile tabulky. Nejdříve je provedeno předzpracování rozdělením hodnot v \emph{binech} jednotlivým symbolům, a to rovnoměrně v závislosti na tom, jak zasahují do rozsahu jím vymezeného. Mějme například symbol A na adrese\footnote{adresy jsou uváděny v decimálním formátu a pro názornost jsou zvoleny nízké hodnoty, v praxi tomu tak téměř nikdy není} $100$ a symbol B na adrese $200$. Analyzovaný \emph{bin} zahrnuje rozsah adres $150 - 225$ a obsahuje čítač o hodnotě $10$. Symbol A proto zasahuje rozsahem $50$ a symbol B rozsahem $25$. Celkový rozsah je $75$, proto první funkci připadne hodnota $10*\frac{50}{75}=6.6667$ a druhé funkci hodnota $10*\frac{25}{75}=3.3333$. Díky způsobu jakým jsou údaje ukládány lze provést přímý převod na vteřiny pomocí profilingového rozlišení z hlavičky histogramového záznamu, a to pouhým vynásobením. Postupným zpracováním všech \emph{binů} je tedy získána celková hodnota exkluzivního času stráveného v dané funkci.
 
@@ -842,44 +777,40 @@ Zpracování tohoto typu záznamů nebylo implementováno a vzhledem k odstraně
 
 \subsection{Vstupní modul - perf}
 
-Modul pro čtení formátu nástroje \emph{perf} je podstatně složitější kvůli komplikovanějším strukturám v tomto formátu uloženým. Vyplývá to z nutnosti obsáhnout širokou škálu druhů dat, které lze touto metodou a tímto nástrojem shromažďovat.
+Modul pro čtení formátu nástroje \emph{perf} je podstatně složitější kvůli komplikovanějším strukturám v tomto formátu uloženým. Vyplývá to z nutnosti obsáhnout širokou škálu druhů dat, které lze tímto nástrojem shromažďovat.
 
-V rámci této práce byla implementována pouze základní škála těchto struktur pro potřeby běžné výkonnostní analýzy uživatelských procesů. Ta zahrnuje načtení hlavičky, kde se nacházejí potřebné offsety jednotlivých sekcí, následuje načtení sekce s atributy, podle které jsou později načítána jednotlivá pole datové sekce, načtení sekce s typy, která momentálně nemá využití, a nakonec načtení sekce s daty.
+V rámci této práce byla implementována sada struktur používaných pro potřeby běžné výkonnostní analýzy uživatelských procesů. Ta zahrnuje načtení hlavičky, kde se nacházejí potřebné offsety jednotlivých sekcí, načtení sekce s atributy, podle které jsou později načítána jednotlivá pole datové sekce, a nakonec načtení sekce s daty.
 
 \subsubsection*{Načítání dat}
 
-V sekci s atributy je nyní využito pouze pole \texttt{sample\_type}, jelikož se jedná o bitfield, kde jsou zapnuté bity podle toho, která data \emph{perf} za dobu běhu sbíral. Nejpodstatnější je pro potřeby současné podoby nástroje bit odpovídající hodnotě enumerátoru \texttt{PERF\_SAMPLE\_IP} a \texttt{PERF\_SAMPLE\_CALLCHAIN}. Hodnota \texttt{PERF\_SAMPLE\_IP} oznamuje, že je ve vzorcích obsažená hodnota instruction pointeru, tedy aktuální adresy prováděné instrukce. Hodnota \texttt{PERF\_SAMPLE\_CALLCHAIN} pak oznamuje, že k jednotlivým vzorkům je připojen i údaj o řetězu volání, tedy ve své podstatě snímek call stacku. To otevírá možnost práce s plnou hierarchií volání.
+V sekci s atributy je využito pouze pole \texttt{sample\_type}, jelikož se jedná o bitové pole, kde jsou zapnuté bity podle toho, která data \emph{perf} za dobu běhu sbíral. Nejpodstatnější je pro potřeby současné podoby nástroje bit odpovídající hodnotě enumerátoru \texttt{PERF\_SAMPLE\_IP} a \texttt{PERF\_SAMPLE\_CALLCHAIN}. Hodnota \texttt{PERF\_SAMPLE\_IP} oznamuje, že je ve vzorcích obsažená hodnota instruction pointeru, tedy aktuální adresy prováděné instrukce. Hodnota \texttt{PERF\_SAMPLE\_CALLCHAIN} pak oznamuje, že k jednotlivým vzorkům je připojen i údaj o řetězu volání, tedy ve své podstatě snímek zásobníku volání. To otevírá možnost práce s plnou hierarchií volání.
 
-Sekce s typy není v současné podobě nijak využita, je implementován pouze úryvek jejího načítání.
+Nejdůležitější částí je ale sekce se samotnými nasbíranými událostmi - sekce datová. Ta obsahuje posloupnost po sobě jdoucích záznamů, které mají různé typy. Nejdříve je vždy přečtena hlavička tohoto záznamu, která obsahuje jak typ, tak velikost dat k přečtení. V současné podobě je důležitá jen omezená množina záznamů, konkrétně jde o typy označené hodnotou enumerátoru \texttt{PERF\_RECORD\_MMAP}, \texttt{PERF\_RECORD\_MMAP2} a \texttt{PERF\_RECORD\_SAMPLE}. Události typu \texttt{mmap} jsou důležité například kvůli vyhledávání symbolů. V~podstatě jde o záznam, který přímo propojuje určitý rozsah adres ve virtuálním paměťovém prostoru procesu s konkrétním souborem, respektive obecně zdrojem. V případě události \texttt{PERF\_RECORD\_MMAP} jde často o mapování kernelových modulů a jiných, často obtížně ovlivnitelných zdrojů. V případě \texttt{PERF\_RECORD\_MMAP2} jde často o mapování nějaké knihovny, typicky \emph{libc} nebo jiných, které profilovaná aplikace využívá. Událost \texttt{PERF\_RECORD\_SAMPLE} pak představuje samotný vzorek pořízený na základě zkoumané veličiny. Ten je složen z informací, jejichž sada je zaznamenána v poli \texttt{sample\_type}. Jak bylo uvedeno, důležitými body jsou kromě samotného vzorkovaného instruction pointeru i snímek call stacku. Tyto informace jsou v rámci načítání extrahovány.
 
-Nejdůležitější částí je ale sekce se samotnými nasbíranými událostmi - sekce datová. Ta obsahuje posloupnost po sobě jdoucích záznamů, které mají různé typy. Nejdříve je vždy přečtena hlavička tohoto záznamu, která obsahuje jak typ, tak velikost dat k přečtení. V současné podobě je důležitá jen omezená množina záznamů, konkrétně jde o typy označené hodnotou enumerátoru \texttt{PERF\_RECORD\_MMAP}, \texttt{PERF\_RECORD\_MMAP2} a \texttt{PERF\_RECORD\_SAMPLE}. Události typu \texttt{mmap} jsou důležité kvůli například vyhledávání symbolů. V podstatě jde o záznam, který přímo propojuje určitý rozsah adres ve virtuálním paměťovém prostoru procesu s konkrétním souborem, respektive obecně zdrojem. V případě události \texttt{PERF\_RECORD\_MMAP} jde často o mapování kernelových modulů a jiných, často obtížně ovlivnitelných zdrojů. V případě \texttt{PERF\_RECORD\_MMAP2} jde o často o mapování nějaké knihovny, typicky \emph{libc} nebo jiných, které jsou spojené se samotným vývojem profilované aplikace. Událost \texttt{PERF\_RECORD\_SAMPLE} pak představuje samotný vzorek pořízený na základě zkoumané veličiny. Ten je složen z informací, jejichž sada je zaznamenána v poli \texttt{sample\_type}. Jak bylo uvedeno, důležitými body jsou krom samotného vzorkovaného instruction pointeru i snímek call stacku. Tyto informace jsou v rámci načítání extrahovány.
+V poslední fázi načítání jsou přečteny záznamy typu \texttt{mmap}, a je provedeno načtení debuggovacích symbolů z takto mapovaných knihoven pomocí nástroje \texttt{nm}. Nejdříve je proveden pokus o načtení ze standardního umístění knihoven ve verzích pro debugging a pokud odpovídající knihovna není nalezena, je načtena z původního umístění (to je uvedeno v příslušných \texttt{mmap} záznamech načtených v předchozím kroku) a je proveden pokus o získání symbolů z ní. Ani tak ale knihovna nemusí potřebné symboly obsahovat - obsahuje je pouze tehdy, jsou-li do ní v čase kompilace úmyslně zapraveny. Takové knihovny lze na linuxových systémech ve standardních balíčkovacích systémech najít s příponou \emph{-dev}.
 
-V nástroji lze vidět implementaci podpory i pro záznamy typu\\ \texttt{PERF\_RECORD\_COMM}, \texttt{PERF\_RECORD\_FORK} a \texttt{PERF\_RECORD\_EXIT}. Ty ale v současnosti nejsou nijak využívané vzhledem k tomu, že pro profilování jediného procesu nejsou podstatné. Jak již názvy napovídají, jde o záznamy spojené s vytvářením a zanikáním procesů.
-
-V poslední fázi načítání jsou přečteny záznamy typu \texttt{mmap}, a je provedeno načtení debuggovacích symbolů z takto mapovaných knihoven pomocí nástroje \texttt{nm}. Nejdříve je proveden pokus o načtení ze standardního umístění knihoven ve verzích pro debugging a pokud odpovídající knihovna není nalezena, je načtena z původního umístění (to je uvedeno v příslušných \texttt{mmap} záznamech načtených v předchozím kroku) a je proveden pokus o získání symbolů z ní. Ten ale nemusí být úspěšný - symboly knihovna ve standardním umístění obsahuje pouze tehdy, jsou-li do ní cíleně zapraveny. Takové knihovny lze na linuxových systémech ve standardních balíčkovacích systémech najít se suffixem \emph{-dev}.
-
-Také jsou načteny kernelové symboly ze souboru \texttt{/proc/kallsyms}, pokud na to má současný uživatel práva. Standardně totiž práva nemá a tento soubor je zpřístupněn pouze uživateli \texttt{root}.
+Také jsou načteny kernelové symboly ze souboru \texttt{/proc/kallsyms}, pokud na to má současný uživatel práva. Standardně ale běžný uživatel taková práva nemá, a tak je nutné pro dostupnost těchto symbolů přistupovat jako privilegovaný uživatel.
 
 \subsubsection*{Předzpracování}
 
-Důležitým znakem tohoto modulu je fakt, že naměřená data nejsou nijak převáděna do časových jednotek. Vzhledem k tomu, že dochází ke vzorkování v poměrně vysokých frekvencích za sběru různého objemu dat, je vyvinut pouze \emph{best effort}\footnote{výraz standardně používaný pro označení snahy maximalizovat efektivitu a spolehlivost, která ale nemusí být vždy úspěšná} pro dodržení rozestupu mezi pořizováním vzorků, ale nelze to předpokládat.
+Důležitým znakem tohoto modulu je fakt, že naměřená data nejsou nijak převáděna do časových jednotek. Vzhledem k tomu, že dochází ke vzorkování v poměrně vysokých frekvencích za sběru různého objemu dat, je vyvinuta pouze největší snaha pro dodržení rozestupu mezi pořizováním vzorků, ale nelze to předpokládat.
 
-Nejdříve jsou filtrovány načtené symboly podle toho, jsou-li skutečně v nasbíraných vzorcích obsaženy. Tato operace urychlí vyhledávání a minimalizuje objem dat předávaných jádru a následně výstupnímu modulu. Nutno dodat, že jsou v nasbíraných datech obsaženy jako hodnota instruction pointeru i adresy, které jsou mimo mapovaný rozsah. Takovým hodnotám je vytvořen nový symbol v rozsahu $100$ adres před a za navzorkovanou adresu a je označený jako nenalezený. Pokud se hodnota nachází v mapovaném rozsahu, ale není pro ni nalezen platný symbol, je opět vytvořen nový symbol, taktéž označený jako nenalezený, ale do jména je přidáno jméno knihovny, z níž se nepodařilo získat potřebné symboly.
+Nejdříve jsou filtrovány načtené symboly podle toho, jsou-li skutečně v nasbíraných vzorcích obsaženy. Tato operace urychlí vyhledávání a minimalizuje objem dat předávaných jádru a následně výstupnímu modulu. Nutno dodat, že jsou v nasbíraných datech obsaženy jako hodnota instruction pointeru i adresy, které jsou mimo mapovaný rozsah. Takovým hodnotám je vytvořen nový \uv{anonymní} symbol v rozmezí $100$ adres před a za načtenou adresou a je označený jako nenalezený. Pokud se hodnota nachází v mapovaném rozsahu, ale není pro ni nalezen platný symbol, je opět vytvořen nový symbol, taktéž označený jako nenalezený, ale do jména je přidáno jméno knihovny, z níž se nepodařilo získat potřebné symboly. Rozsah $100$ adres před a za načtenou adresu byl zvolen z důvodu dostatečné granularity, jelikož kvůli absenci symbolů nelze vymezit hranice funkcí, ale zároveň je vhodné mít alespoň přibližnou informaci o funkčním volání z nemapovaného sektoru.
 
-Jako další krok následuje zpracování flat view, což spočívá v pouhém nasčítání výskytů dané funkce v nasnímaných datech. V této proceduře je počítán jak exkluzivní počet vzorků, kdy je vzorek přičten do vlastního pole pro exkluzivní počet vzorků pouze poslednímu článku callchainu, tak inkluzivní, kdy je vzorek přičten do pole pro inkluzivní počet vzorků všem článkům callchainu.
+Jako další krok následuje zpracování flat view, což spočívá v pouhém nasčítání výskytů dané funkce v nasnímaných datech. V této proceduře je počítán jak exkluzivní počet vzorků, kdy je vzorek přičten do vlastního pole pro exkluzivní počet vzorků pouze poslednímu článku řetězu volání, tak inkluzivní, kdy je vzorek přičten do pole pro inkluzivní počet vzorků všem článkům řetězu volání.
 
-Následuje vyhodnocení call grafu, který je také sestaven z callchainů, a to čistě nasčítáním výskytu dvojic indexů po sobě jdoucích symbolů v rámci jednoho řetězu. Podpora call grafu pro nástroj \emph{perf} není obvykle součástí ostatních nástrojů, které dovolují vizualizovat data jím nasbíraná. Důvodem je často průkaznější identifikace bottlenecku pomocí stromu volání. K prvotní identifikaci možného problému je ale tento pohled poměrně důležitý, a to právě díky možnosti zobrazit \emph{hot path}, tedy posloupnost funkcí, které svým voláním tvoří největší výkonnostní problém.
+Následuje vyhodnocení call grafu, který je také sestaven z řetězů volání, a to čistě nasčítáním výskytu dvojic indexů po sobě jdoucích symbolů v rámci jednoho řetězu. Podpora call grafu pro nástroj \emph{perf} není obvykle součástí ostatních nástrojů, které dovolují vizualizovat data jím nasbíraná. Důvodem je často průkaznější identifikace slabého místa pomocí stromu volání. K prvotní identifikaci možného problému je ale tento pohled poměrně důležitý, a to právě díky možnosti zobrazit \emph{kritické cesty}, tedy posloupnost funkcí, které svým voláním tvoří největší výkonnostní problém.
 
-Posledním krokem je právě vyhodnocení call tree, respektive úplné ohodnocené hierarchie volání. V podstatě jde o \uv{sečtení} všech callchainů, a to do složitější struktury, zde konkrétně základní implementace stromu. Ten je sestavován tak, že pro každý callchain je započato prohledávání mezi kořenovými uzly, které zároveň uzly vytváří, pokud ještě neexistují. Při procházení je opět stejným způsobem přičítán exkluzivní a inkluzivní počet vzorků.
+Posledním krokem je právě vyhodnocení call tree, respektive úplné ohodnocené hierarchie volání. V podstatě jde o \uv{sečtení} všech řetězů volání, a to do složitější struktury, zde konkrétně základní implementace stromu. Ten je sestavován tak, že pro každý řetěz volání je započato prohledávání v kořenovém uzlu, a pokud při prohledávání není potřebný uzel nalezen, algoritmus ho vytvoří. Při procházení je opět stejným způsobem přičítán exkluzivní a inkluzivní počet vzorků.
 
 
 \section{Výstupní moduly}
 
-Konceptem se výstupní moduly od vstupních příliš neliší. Také musí být kompilovány do podoby dynamické knihovny a implementovat funkce\\ \texttt{CreateOutputModule()} a \texttt{RegisterLogger()}. Analogicky k modulu vstupnímu i modul výstupní funkcí \texttt{CreateOutputModule()} tvoří instanci třídy, která dědí od abstraktní třídy \texttt{OutputModule} a implementuje její čistě virtuální metody.
+Konceptem se výstupní moduly od vstupních příliš neliší. Jsou kompilovány do podoby dynamické knihovny a implementují funkce \texttt{CreateOutputModule()} a \texttt{RegisterLogger()}. Funkcí \texttt{CreateOutputModule()} tvoří výstupní modul instanci třídy, která dědí od abstraktní třídy \texttt{OutputModule} a implementuje její čistě virtuální metody.
 
 Vzhledem k velmi omezené množině požadavků na výstupní modul, které mohou být jádrem vyvolány, není toto rozhraní tak složité. Funkce obecné, tedy \texttt{ReportName()}, \texttt{ReportVersion()} a \texttt{ReportFeatures()} zůstávají stejné, a jedinou metodou, která je využívána v rámci vizualizace je metoda \texttt{VisualizeData()}. Ta přejímá jako parametr strukturu \texttt{NormalizedData} generovanou v předchozích krocích běhu programu.
 
-Výstupní modul má samozřejmě oddělenou množinu featur od modulu vstupního. Tyto featury jsou definovány v enumerátoru \texttt{OutputModuleFeatures}, a v současné době se jedná o tyto hodnoty:
+Výstupní modul má samozřejmě oddělenou množinu vlastností od modulu vstupního. Tyto vlastností jsou předávány ve struktuře \texttt{OMF\_SET} a jejich hodnoty jsou definovány v enumerátoru \texttt{OutputModuleFeatures}. Jedná se o tyto hodnoty:
 
 \begin{itemize}
 \item \texttt{OMF\_FLAT\_PROFILE} - podpora flat view a práce s takovými hodnotami
@@ -887,26 +818,26 @@ Výstupní modul má samozřejmě oddělenou množinu featur od modulu vstupníh
 \item \texttt{OMF\_CALL\_TREE} - podpora práce s úplnou hierarchií volání
 \end{itemize}
 
-Tyto featury jsou poměrně obecné a oznamují pouze charakter dat, se kterými je výstupní modul schopen pracovat. Například oznámením featury \texttt{OMF\_CALL\_TREE} pouze výstupní modul dal vědět, že je schopen pracovat s úplnou hierarchií volání. Z té se ale dá generovat více pohledů, než je jen obyčejný strom volání - například i flame graph.
+Tyto vlastnosti jsou poměrně obecné a oznamují pouze charakter dat, se kterými je výstupní modul schopen pracovat. Například uvedená vlastnost \texttt{OMF\_CALL\_TREE} pouze znamená, že je výstupní modul schopen pracovat s úplnou hierarchií volání. Z té se ale dá generovat více pohledů, než je jen obyčejný strom volání - například i flame graph.
 
-\subsection{Výstupní modul - webová stránka}
+\subsection{Výstupní modul - HTML}
 
-Jediným výstupním modulem v současné podobě je modul, který podporuje generování webového hlášení. Je implementován šablonovací systém s podporou jednoduchých značek pro plnění proměnnými daty. Princip fungování tohoto modulu spočívá pouze v načtení šablon, rozparsování, naplnění daty ze vstupu a uložení do výstupního adresáře. Žádná pokročilejší logika se zde nenachází, ta je obsažena až v generované šabloně v podobě funkcí psaných v jazyce Javascript. Ty se starají o generování dynamického a interaktivního výstupu, zpřístupnění filtrů a nějaké dodatečné výpočty, obarvování uzlů a další funkcionalitu.
+V rámci bakalářské práce byl implementován modul pro generování výstupů ve formátu HTML. Je implementován šablonovací systém, a to z důvodu umožnění snadné změny ve výstupech bez nutnosti překompilování celého modulu. Šablony podporují jednoduché značky pro plnění proměnnými daty. Princip fungování tohoto modulu spočívá pouze v načtení šablon, jejich zpracování, naplnění daty ze vstupu a uložení do výstupního adresáře. Žádná pokročilejší logika se zde nenachází, ta je obsažena až v generované šabloně v podobě funkcí psaných v jazyce Javascript. Ty se starají o generování dynamického a interaktivního výstupu, zpřístupnění filtrů, dodatečné výpočty související s konkrétními pohledy, obarvování uzlů a další funkcionalitu.
 
 \subsubsection*{Šablonovací systém}
 
-Základem celého modulu je systém práce se šablonami. Ty jsou uloženy v podsložce \texttt{HtmlTemplates}. Modul nejdříve načte soubor \texttt{template.html}, a v něm může být specifikováno, jaké další soubory chceme načíst a vložit, případně pouze zkopírovat z výchozí složky do výstupní.
+Základem celého modulu je systém práce se šablonami. Ty jsou uloženy v podadresáři \texttt{HtmlTemplates}. Modul nejdříve načte soubor \texttt{template.html}, a v něm může být specifikováno, jaké další soubory chceme načíst a vložit do generovaného výstupu, případně pouze zkopírovat z výchozí složky do výstupní.
 
-V šablonách lze použít značky pro takové akce. Značka je vždy započata sekvencí znaků \texttt{<\#} a ukončena \texttt{\#>}. Jedná se o tyto značky:
+Značka je vždy započata sekvencí znaků \texttt{<\#} a ukončena \texttt{\#>}. Jedná se o tyto značky:
 
 \begin{itemize}
-\item \texttt{<\#INCLUDE soubor\#>} - načtení, rozparsování a zpracování dalšího souboru šablony
+\item \texttt{<\#INCLUDE soubor\#>} - načtení a zpracování dalšího souboru šablony
 \item \texttt{<\#COPYFILE soubor\#>} - zkopíruje soubor do cílového umístění
 \item \texttt{<\#BEGIN název\_bloku\#>} - označení začátku bloku, vždy znamená opakování pro každý záznam daného bloku
 \item \texttt{<\#END název\_bloku\#>} - označení konce bloku
-\item \texttt{<\#VALUE název\_pole\#>} - v rámci bloku je tato značka nahrazena hodnotou pole; hodnota je escapována podle HTML pravidel
-\item \texttt{<\#JSVALUE název\_pole\#>} - v rámci bloku je tato značka nahrazena hodnotou pole; hodnota je escapována podle Javascript pravidel
-\item \texttt{<\#RAWVALUE název\_pole\#>} - v rámci bloku je tato značka nahrazena hodnotou pole; hodnota není escapována
+\item \texttt{<\#VALUE název\_pole\#>} - v rámci bloku je tato značka nahrazena hodnotou pole; hodnota je ošetřena podle HTML pravidel
+\item \texttt{<\#JSVALUE název\_pole\#>} - v rámci bloku je tato značka nahrazena hodnotou pole; hodnota je ošetřeba podle Javascript pravidel
+\item \texttt{<\#RAWVALUE název\_pole\#>} - v rámci bloku je tato značka nahrazena hodnotou pole; hodnota není dodatečně ošetřena
 \end{itemize}
 
 Typy bloků a podporované názvy polí v rámci nich:
@@ -914,7 +845,7 @@ Typy bloků a podporované názvy polí v rámci nich:
 \renewcommand{\labelitemii}{$\bullet$}
 
 \begin{itemize}
-\item \texttt{SUMMARY} - souhrnné informace o profilingovém sezení
+\item \texttt{SUMMARY} - souhrnné informace o profilingovém sezení, jsou generovány jádrem - obsahují například názvy a verze modulů, počet nalezených symbolů a další údaje specifické pro konkrétní sezení
 	\begin{itemize}
 	\item \texttt{KEY} - název hodnoty, titulek
 	\item \texttt{CONTENT} - hodnota
@@ -950,12 +881,13 @@ Typy bloků a podporované názvy polí v rámci nich:
 	\end{itemize}
 \end{itemize}
 
-Jediná netypicky generovaná data jsou obsažena v rámci stromu volání. Při generování je spuštěn z každého kořene algoritmus DFS. Jakmile je po čas procházení dosaženo listu, je zpětně vygenerována posloupnost identifikátorů funkcí, času, procentuálního času a počtu vzorků, které jsou propsány do šablony v podobě čárkou oddělených hodnot. Počítá se s tím, že v šabloně je obslužný skript, který dovede naparsovat takovou posloupnost a zrekonstruovat strom volání včetně potřebné interaktivity.
+Všechny tyto bloky jsou zapsány tolikrát, kolik záznamů se v dané struktuře nachází. Například je-li v rámci flat view obsaženo $100$ funkcí, je obsah bloku zapsán $100\times$, pokaždé s hodnotami právě jedné funkce. Jediná odlišně generovaná data jsou obsažena v rámci stromu volání. Při generování je spuštěn z každého kořene algoritmus DFS. Jakmile je po čas procházení dosaženo listu, je zpětně vygenerována posloupnost identifikátorů funkcí, času, procentuálního času a počtu vzorků, které jsou propsány do šablony v podobě čárkou oddělených hodnot. Počítá se s tím, že v šabloně je obslužný skript, který dovede zpracovat takovou posloupnost a zrekonstruovat strom volání včetně potřebné interaktivity.
 
 \subsubsection*{Připravená šablona}
 
-V rámci této práce byla zpracována i šablona, v rámci níž je podporována základní škála pohledů. Jedná se o šablonu pro webovou stránku, která je psaná v jazycích HTML a Javascript a nastylována pomocí CSS.
+V rámci této práce byla zpracována i šablona, v rámci níž je podporována základní škála pohledů. Jedná se o šablonu pro webovou stránku, která je psaná v jazycích HTML a Javascript a je doplněna styly psanými v jazyce CSS.
 
+\newpage
 Přehled souborů:
 \begin{itemize}
 \item \texttt{template.html} - hlavní soubor šablony
@@ -969,6 +901,8 @@ Přehled souborů:
 \item \texttt{vis.min.css} - soubor se styly knihovny vis.js
 \end{itemize}
 
+\subsubsection*{Základní přehled}
+
 V šabloně je implementována podpora základního přehledu, kde jsou vypsány jádrem a moduly sestavená metadata ve formátu klíč-hodnota. Tento pohled lze vidět na obrázku \ref{obr:implbasic}.
 
 \begin{figure}[h]
@@ -978,7 +912,9 @@ V šabloně je implementována podpora základního přehledu, kde jsou vypsány
     \label{obr:implbasic}
 \end{figure}
 
-Dalším pohledem je flat view, který sestává z tabulky, v níž každý řádek představuje jednu funkci. V rámci řádku tabulky jsou vypsány exkluzivní a inkluzivní časy (počty vzorků) a počet volání. Také je vypsáno jméno funkce, a ve vrstvě pod ním lze vidět obdélník, jehož šířka je odvozena od exkluzivního času a barva podle lokace v rámci analyzované aplikace. Pokud pochází daná funkce z původní aplikace ze sekce \texttt{.text}\footnote{obvykle read-only sekce binárního souboru, ve které je uložen samotný kód programu}, je podbarvena zeleně. Pokud pochází z jiného zdroje, je podbarvena červeně. Výjimku tvoří funkce z jádra operačního systému, které jsou podbarveny modře. Takové rozlišení dovoluje odlišit funkce, u kterých je možné optimalizovat jejich samotný kód (typicky funkce ze zkoumaného programu) od funkcí, kde lze optimalizovat pouze způsob a počet volání (typicky knihovní funkce). Celou tabulku lze řadit kliknutím na záhlaví sloupce, a to jak vzestupně, tak sestupně. Také je možné definovat filtrovací kritéria. Náhled lze vidět na obrázku \ref{obr:implflat}
+\subsubsection*{Flat view}
+
+Dalším pohledem je flat view, který sestává z tabulky, v níž každý řádek představuje jednu funkci. V rámci řádku tabulky jsou vypsány exkluzivní a inkluzivní časy (počty vzorků) a počet volání. Také je vypsáno jméno funkce, a ve vrstvě pod ním lze vidět obdélník, jehož šířka je odvozena od exkluzivního času a barva podle sekce v rámci analyzované aplikace - pokud pochází daná funkce z původní aplikace ze sekce \texttt{.text}\footnote{sekce binárního souboru, obvykle pouze pro čtení, ve které je uložen samotný kód programu}, je podbarvena zeleně. Pokud pochází z jiného zdroje, například z dynamicky linkované knihovny, je podbarvena červeně. Výjimku tvoří funkce z jádra operačního systému, které jsou podbarveny modře. Takové rozlišení dovoluje odlišit funkce, u kterých je možné optimalizovat jejich samotný kód (typicky funkce ze zkoumaného programu) od funkcí, kde lze optimalizovat pouze způsob a počet volání (typicky knihovní funkce). Celou tabulku lze řadit kliknutím na záhlaví sloupce, a to jak vzestupně, tak sestupně. Také je možné definovat filtrovací kritéria. Náhled lze vidět na obrázku \ref{obr:implflat}
 
 \begin{figure}[h]
     \centering
@@ -987,11 +923,13 @@ Dalším pohledem je flat view, který sestává z tabulky, v níž každý řá
     \label{obr:implflat}
 \end{figure}
 
-Šablona dále podporuje call graph pohled, kde využívá funkcionalitu z knihovny \texttt{vis.js}. Ten má dva různé způsoby, jakými je uspořádán. Prvním je způsob hierarchický, kdy je každému uzlu předpočítána úroveň a knihovna se snaží vybalancovat takový graf pomocí vestavěné simulace fyziky do čitelné podoby. Druhým způsobem je graf bez generované organizace, který sice postrádá hierarchii, ale často dovede bez ztráty přehlednosti zobrazit podstatě větší množství uzlů. Zde je opět výsledné uspořádání balancováno pomocí vestavěné simulace fyziky, zde prozměnu v obou rozměrech. Ukázku hierarchického pohledu lze vidět na výřezu na obrázku \ref{obr:implgraph}.
+\subsubsection*{Call graph}
+
+Šablona dále podporuje call graph pohled, kde využívá funkcionalitu \\z~knihovny \texttt{vis.js}. Ten má dva různé způsoby, jakými je uspořádán. Prvním je způsob hierarchický, kdy je každému uzlu předpočítána úroveň podle hloubky volání a knihovna se snaží vybalancovat takový graf pomocí vestavěné simulace fyziky. Simulovaná fyzika spočívá v definování \uv{odporu} každého uzlu a iterativním vybalancování grafu tak, aby byly všechny uzly od sebe vzdáleny na danou minimální vzdálenost, ale zároveň nepřekročily vzdálenost maximální. To zaručí lepší čitelnost grafu. Druhým způsobem je graf bez generované organizace, který sice postrádá hierarchii, ale často dovede bez ztráty přehlednosti zobrazit podstatě větší množství uzlů. Zde je opět výsledné uspořádání balancováno pomocí vestavěné simulace fyziky, zde prozměnu v obou rozměrech. Ukázku hierarchického pohledu lze vidět na výřezu na obrázku \ref{obr:implgraph}.
 
 Graf je také interaktivní. Tažením myší lze uzly přesouvat, po najetí kurzorem myši na uzel jsou zobrazeny detailní informace o funkci, kterou daný uzel představuje. Také je možné dvojklikem na uzel expandovat graf pouze z vybraného uzlu, čímž se dá efektivně redukovat celý výstup, a zaměřit se pouze na jeho část. V neposlední řadě lze definovat filtrovací kritéria, zvolit způsob, podle kterého se budou uzly grafu obarvovat, omezit vstupní bod pouze na funkce ze sekce \texttt{.text}, nebo zvolit maximální délku názvu symbolu ve výstupu.
 
-Co se týká barvení, uzly lze obarvit standardně podle exkluzivního nebo inkluzivního času (počtu vzorků), počtu volání, nebo podle poměru inkluzivního a exkluzivního času (popř. obráceným poměrem). Barvení pomocí poměru exkluzivního ku inkluzivního času dopomáhá odhalit hot path, obrácený poměr pak zvýrazní uzly, ve kterých je poměrově tráveno exkluzivně minimum času, ale tvoří vstupní bod do nějaké náročnější komponenty. Barevná škála je lineárně interpolována od červené (největší hodnoty) přes žlutou až po zelenou (nejnižší hodnoty), a vždy je dynamicky vyhodnocena podle viditelných dat.
+Co se týká barvení, uzly lze obarvit standardně podle exkluzivního nebo inkluzivního času (počtu vzorků), počtu volání, nebo podle poměru inkluzivního a exkluzivního času (popř. obráceným poměrem). Barvení pomocí poměru exkluzivního ku inkluzivního času dopomáhá odhalit \emph{kritickou cestu}, obrácený poměr pak zvýrazní uzly, ve kterých je poměrově tráveno exkluzivně minimum času, ale tvoří vstupní bod do nějaké náročnější komponenty. Barevná škála je lineárně interpolována od červené (největší hodnoty) přes žlutou až po zelenou (nejnižší hodnoty), a vždy je dynamicky vyhodnocena podle viditelných dat.
 
 \begin{figure}[h]
     \centering
@@ -999,6 +937,8 @@ Co se týká barvení, uzly lze obarvit standardně podle exkluzivního nebo ink
     \caption{Výřez pohledu call graph generovaný nástrojem PIVO}
     \label{obr:implgraph}
 \end{figure}
+
+\subsubsection*{Hierarchical view}
 
 Dalším podporovaným pohledem je pohled hierarchický v podobě stromu volání. V základním pohledu jsou vidět pouze kořeny jednotlivých stromů, kterých může být více vzhledem k tomu, že po dobu provádění programu se může v rámci jednoho procesu vykonávat více vláken, případně jsou například nástrojem \emph{perf} navíc vzorkovány ještě další kontexty. Tyto kořeny lze kliknutím expandovat a vypsat tak všechny potomky v rámci daného podstromu. V rámci řádky, která opět představuje jedno zanoření v hierarchii volání, lze vidět na levé straně dva obdélníky. Plný obdélník obsahuje procentuálně inkluzivní čas (počet vzorků) a obdélník pouze s rámem čas exkluzivní. Barvení je opět přizpůsobeno viditelné škále.
 
@@ -1016,19 +956,21 @@ Dalším podporovaným pohledem je pohled hierarchický v podobě stromu volán�
     \label{obr:implflame}
 \end{figure}
 
+\subsubsection*{Flame graph}
+
 Posledním v současnosti podporovaným pohledem je flame graph. Ten je sestavený za pomoci stejných dat jako pohled předchozí, tedy strom volání. Tento pohled lze opět rozklikávat a měnit tak výchozí bod, ze kterého bude expandována hierarchie volání. Barvy jsou v tomto pohledu voleny náhodně, jelikož není třeba žádné další rozlišení. Inkluzivní čas je znázorněn šířkou sloupce, exkluzivní čas tím, co \uv{přebývá} oproti další úrovni hierarchie. Po rozklikání lze resetovat pohled volbou \texttt{Reset view}.
 
 
 
 
 
-\chapter{Uživatelská dokumentace}
+\chapter{Překlad a spuštění}
 
-V této kapitole bude popsán postup stažení, instalace a používání vytvořeného nástroje.
+V této kapitole bude popsán postup přeložení a používání vytvořeného nástroje.
 
 \section{Získání}
 
-Software je dostupný buď z online zdrojů nebo z přiloženého CD, a to v podobě zdrojových souborů s připravenými skripty pro generování sestavovacích konfigurací.
+Software je dostupný z přiloženého CD, a to v podobě zdrojových souborů s připravenými skripty pro generování sestavovacích konfigurací a přeložených spustitelných souborů pro OS GNU/Linux.
 
 Pro přeložení jádra tohoto nástroje je třeba mít tyto prerekvizity:
 
@@ -1037,28 +979,9 @@ Pro přeložení jádra tohoto nástroje je třeba mít tyto prerekvizity:
 \item Nástroj \emph{CMake}
 \end{itemize}
 
-Pro vstupní moduly formátů \emph{gprof} a \emph{perf} je navíc potřeba software překládat na OS GNU/Linux, a mít nainstalovaný balíček \texttt{binutils}. Webový výstupní modul nemá žádné dodatečné závislosti.
+Pro vstupní moduly formátů \emph{gprof} a \emph{perf} je navíc potřeba software překládat na OS GNU/Linux, a mít nainstalovaný balíček \texttt{binutils}. Výstupní modul HTML nemá žádné dodatečné závislosti.
 
-\subsection*{Online zdroje}
-
-Pro získání nástroje z online zdrojů je nutné buď mít nainstalovaný verzovací nástroj \emph{git} a naklonovat jím příslušný vzdálený repozitář, nebo lze stáhnout zdrojové soubory zabalené v archivu díky službě portálu \emph{github.com}
-
-Přehled repozitářů:
-\begin{itemize}
-\item \url{https://github.com/ProjectPIVO/pivo-core} - jádro nástroje - je potřeba v každém případě
-\item \url{https://github.com/ProjectPIVO/pivo-input-gprof} - \emph{gprof} vstupní modul
-\item \url{https://github.com/ProjectPIVO/pivo-input-perf} - \emph{perf} vstupní modul
-\item \url{https://github.com/ProjectPIVO/pivo-output-html} - webový výstupní modul
-\item \url{https://github.com/ProjectPIVO/pivo-input-dummy} - kostra implementace vstupního modulu pro případ tvorby nového
-\end{itemize}
-
-Příslušnou adresu buď použijeme jako zdroj pro nástroj \emph{git}, nebo jako URL, kde lze po navigování webovým prohlížečem najít tlačítko s popiskem \uv{Download ZIP}, kterým je spuštěna archivace a stažení.
-
-Nejdříve provedeme vybraným způsobem stažení jádra nástroje, přesuneme se do podadresáře \texttt{modules}, kam můžeme vkládat adresáře obsahující jednotlivé moduly nástroje. Nástroj \emph{CMake} je pak dovede zaregistrovat pomocí skriptu, který je v repozitáři přibalen.
-
-\subsection*{Přiložené CD}
-
-Při sestavení a instalaci nástroje z přiloženého CD je vhodné nejdříve překopírovat obsah příslušného adresáře někam na místní disk. V připravené adresářové struktuře jsou připraveny všechny moduly nástroje, není tedy nutné nic dodatečně stahovat nebo přesouvat.
+Při sestavení a instalaci nástroje z přiloženého CD je vhodné nejdříve překopírovat obsah příslušného adresáře na místní disk. V připravené adresářové struktuře jsou připraveny všechny moduly nástroje, není tedy nutné nic dodatečně stahovat nebo přesouvat.
 
 \section{Instalace}
 
@@ -1066,47 +989,29 @@ V připravené adresářové struktuře je nyní potřeba vygenerovat konfigura�
 
 Následně je možné projekt sestavit zvoleným nástrojem.
 
-Výstupem je složka \texttt{bin}, která obsahuje jak přeložené jádro, kterým se nástroj spouští, tak všechny vybrané moduly v podobě dynamických knihoven, a také všechny přidružené soubory, které moduly vyžadují. V případě webového výstupního modulu to je složka se šablonami s názvem \texttt{HtmlTemplates}.
+Výstupem je složka \texttt{bin}, která obsahuje jak přeložené jádro, kterým se nástroj spouští, tak všechny vybrané moduly v podobě dynamických knihoven, a také všechny přidružené soubory, které moduly vyžadují. V případě výstupního modulu HTML to je složka se šablonami s názvem \texttt{HtmlTemplates}.
 
-\subsection*{Příklad posloupnosti příkazů instalace na GNU/Linux}
-
-\lstset{escapechar=@,style=custombash}
-\begin{lstlisting}
-# Naklonovani vzdaleneho repozitare jadra
-git clone https://github.com/ProjectPIVO/pivo-core
-# Presun do slozky s moduly
-cd pivo-core/modules
-# Naklonovani vsech dostupnych modulu
-git clone https://github.com/ProjectPIVO/pivo-input-gprof
-git clone https://github.com/ProjectPIVO/pivo-input-perf
-git clone https://github.com/ProjectPIVO/pivo-output-html
-# Presun zpet do korenoveho adresare
-cd ..
-# Spusteni CMake a vygenerovani Makefile
-cmake .
-# Sestaveni nastroje
-make
-\end{lstlisting}
 
 
 \section{Spuštění}
 
-Nástroj je standardně spouštěn přes aplikaci vzniklou kompilací jádra, která nese název \texttt{pivo-core}. Veškerá parametrizace probíhá pomocí argumentů příkazové řádky, není zde tedy žádný konfigurační soubor nebo jiný způsob.
+Nástroj je standardně spouštěn přes aplikaci vzniklou kompilací jádra, která nese název \texttt{pivo-core}. Veškerá parametrizace probíhá pomocí argumentů příkazové řádky.
 
 Parametry, které lze předat aplikaci jsou tyto:
 
 \begin{itemize}
+\item \texttt{-{}-help} - vypsání nápovědy s podporovanými parametry
 \item \texttt{-im <název>} - (povinný) specifikace vstupního modulu (\texttt{gprof}, \texttt{perf}, ..)
 \item \texttt{-om <název>} - (povinný) specifikace výstupního modulu (\texttt{html}, ..)
 \item \texttt{-i <cesta>} - (povinný) specifikace vstupního souboru nebo adresáře - typicky výstup profileru (\texttt{gmon.out}, \texttt{perf.data}, ..)
 \item \texttt{-o <cesta>} - cesta pro generování výstupu; ve výchozím nastavení se používá současný pracovní adresář
-\item \texttt{-b <cesta>} - cesta ke spustitelnému souboru, který byl v rámci profilingového sezení analyzován
+\item \texttt{-b <cesta>} - cesta ke spustitelnému souboru, který byl v rámci profilingového sezení analyzován; nemá výchozí hodnotu
 \item \texttt{-ll <číslo>} - logovací úroveň (0 = vypnuto, 1 = \texttt{ERROR}, 2 = \texttt{WARNING}, 3 = \texttt{INFO}, 4 = \texttt{VERBOSE}, 5 = \texttt{DEBUG}); ve výchozím nastavení je použita úroveň 2 = \texttt{WARNING}
 \item \texttt{-lf <cesta>} - soubor, do kterého se budou ukládat logy; ve výchozím nastavení vypnuto
-\item \texttt{-s} - kompletně vypíná veškerý výstup na konzoli (\texttt{stdout}, \texttt{stderr})
+\item \texttt{-s} - kompletně vypíná veškerý výstup na konzoli (\texttt{stdout}, \texttt{stderr}); ve výchozím nastavení vypnuto
 \end{itemize}
 
-Příkaz pro zpracování výstupu nástroje \emph{gprof} z analýzy programu \texttt{a.out} za použití webového výstupního modulu, kdy specifikujeme i parametr pro detailnější log navíc ukládaný do souboru, může například vypadat takto:
+Příkaz pro zpracování výstupu nástroje \emph{gprof} z analýzy programu \texttt{a.out} za použití výstupního modulu HTML, kdy specifikujeme i parametr pro detailnější log navíc ukládaný do souboru, může například vypadat takto:
 
 \lstset{escapechar=@,style=custombash}
 \begin{lstlisting}
@@ -1125,10 +1030,9 @@ V této kapitole budou prezentovány výstupy realizovaného nástroje na zákla
 
 Pro potřeby porovnání výsledků je prvním vybraným programem pro výkonnostní analýzu a následnou vizualizaci program jednodušší - v tomto případě se jedná o semestrální práci z předmětu KIV/PRO. V rámci ní byl implementován genetický algoritmus pro nalezení alespoň jednoho vektoru řešení rovnice o N neznámých. Program tedy sestává z parsování matematického výrazu algoritmem shunting yard do podoby RPN\footnote{Reverse Polish notation, také nazývaná postfixová notace, je tvar matematického výrazu, který lze snadno strojově vyhodnotit} zásobníku, opakovaného vyhodnocení takto zpracovaného zásobníku, a pak z operací souvisejících s genetickými algoritmy, jako je například křížení a mutace.
 
-Zdrojové kódy jsou k dispozici na adrese:\\
-\url{https://github.com/MartinUbl/GA_EquationSolving}
+Zdrojové kódy jsou k dispozici na přiloženém CD v adresáři \texttt{examples}, podadresáři \texttt{GA\_EquationSolving}.
 
-Výstup flat view nástroje původního (obr. \ref{obr:testgprofreportflat}) a nástroje \emph{PIVO} (obr. \ref{obr:testgprofpivoflat}) se formou moc neliší - jde o tabulku funkcí s časy, procenty a počtem volání. Na první pohled lze však vidět, že původní \emph{gprof report} výstup neobsahuje inkluzivní časy, a také neobsahuje žádnou podpůrnou vizualizaci v podobě podbarvení řádků, jako výstup nástroje \emph{PIVO}. Oproti tomu původní výstup obsahuje pole \uv{\emph{us/call}}, které uvádí průměrný počet mikrosekund na jedno volání, a také kumulativní čas. Jedná se ale spíše o podpůrné hodnoty, jejichž význam je do velké míry nahrazen kombinací exkluzivního a inkluzivního času.
+Výstup flat view nástroje \emph{gprof report} (obr. \ref{obr:testgprofreportflat}) a nástroje \emph{PIVO} (obr. \ref{obr:testgprofpivoflat}) se formou příliš neliší - jde o tabulku funkcí s časy, procenty a počtem volání. Na první pohled lze však vidět, že původní \emph{gprof report} výstup neobsahuje inkluzivní časy, a také neobsahuje žádnou podpůrnou vizualizaci v podobě podbarvení řádků, jako výstup nástroje \emph{PIVO}. Oproti tomu původní výstup obsahuje pole \uv{\emph{us/call}}, které uvádí průměrný počet mikrosekund na jedno volání, a také kumulativní čas. Jedná se ale spíše o podpůrné hodnoty, jejichž význam je do velké míry nahrazen kombinací exkluzivního a inkluzivního času.
 
 \newpage
 \vspace*{1cm} %ignore this line and act like everything's fine
@@ -1165,25 +1069,25 @@ Výstup flat view nástroje původního (obr. \ref{obr:testgprofreportflat}) a n
 \begin{figure}[h]
     \centering
     \includegraphics[interpolate,width=1.0\textwidth]{img/test-ga-pivo-graph-ratio.png}
-    \caption{Call-graph zpracovaný nástrojem \emph{PIVO} z běhu genetického algoritmu, uzly jsou obarveny podle poměru exkluzivního a inkluzivního času; lze snadno pozorovat \emph{hot path}}
+    \caption{Call-graph zpracovaný nástrojem \emph{PIVO} z běhu genetického algoritmu, uzly jsou obarveny podle poměru exkluzivního a inkluzivního času; lze snadno pozorovat \emph{kritickou cestu}}
     \label{obr:testgprofpivograph2}
 \end{figure}
 
 \newpage
 
-Na pohledu call-graph lze snadno demonstrovat výhodu interaktivity. Obrázek \ref{obr:testgprof2dot} obsahuje call-graph vygenerovaný běžně používaným nástrojem \emph{gprof2dot}, který musel být ale ručně oříznut v grafickém editoru, aby se vešel na stránku alespoň otočený. Za podpory interaktivity je oproti tomu možné spousty informací skrýt a ponechat viditelné jen ty nejdůležitější - konkrétní časy mohou být vidět až po najetí myší, stejně jako celá jména funkcí. Dále je hlavně v rozsáhlejších grafech velmi vhodné mít možnost filtrování a případně i změny stylu obarvování. Na obrázku \ref{obr:testgprofpivograph1} lze vidět pohled generovaný nástrojem \emph{PIVO} odpovídající původnímu z nástroje \emph{gprof2dot}. Na obrázku \ref{obr:testgprofpivograph2} lze pak vidět obarvený graf podle poměru exkluzivního a inkluzivního času, což dovoluje vizuálně oddělit \emph{hot path} od \uv{méně podstatné} části grafu.
+Na pohledu call-graph lze snadno demonstrovat výhodu interaktivity. Obrázek \ref{obr:testgprof2dot} obsahuje call-graph vygenerovaný běžně používaným nástrojem \emph{gprof2dot}, který musel být ale ručně oříznut v grafickém editoru, aby se vešel na stránku alespoň otočený. Za podpory interaktivity je oproti tomu možné spousty informací skrýt a ponechat viditelné jen ty nejdůležitější - konkrétní časy mohou být vidět až po najetí myší, stejně jako celá jména funkcí. Dále je hlavně v rozsáhlejších grafech velmi vhodné mít možnost filtrování a případně i změny stylu obarvování. Na obrázku \ref{obr:testgprofpivograph1} lze vidět pohled generovaný nástrojem \emph{PIVO} odpovídající původnímu z nástroje \emph{gprof2dot}. Na obrázku \ref{obr:testgprofpivograph2} lze pak vidět obarvený graf podle poměru exkluzivního a inkluzivního času, což dovoluje vizuálně oddělit \emph{kritickou cestu} od \uv{méně podstatné} části grafu.
 
-Jednoznačný výkonnostní problém obsahuje funkce \texttt{rpn\_evaluate\_stack()}, což lze poznat jak z velkého procenta exkluzivního času (flat view), tak z call-graph pohledu, kde tímto uzlem ostře končí \emph{hot path}. Dále by bylo vhodné zvážit optimalizaci v oblasti práce se zásobníkem, jelikož všechny funkce mají poměrně vysoké procento exkluzivního času, což lze vidět ve flat view. Navíc funkce \texttt{rpn\_pop\_two\_values()} má příliš velké procento exkluzivního času na to, co skutečně provádí - to by samo o sobě napovídalo, že funkce pravděpodobně špatně využívá cache nebo obsahuje jinou neoptimální strukturu. Nicméně vzhledem k časům ostatních zásobníkových funkcí se dá usoudit, že problém bude v samotné implementaci zásobníku nebo jeho nesprávném využívání ve funkci vyhodnocující RPN zásobník.
+Jednoznačný výkonnostní problém obsahuje funkce \texttt{rpn\_evaluate\_stack()}, což lze poznat jak z velkého procenta exkluzivního času (flat view), tak z \emph{call graph} pohledu, kde tímto uzlem ostře končí \emph{kritická cesta}. Dále by bylo vhodné zvážit optimalizaci v oblasti práce se zásobníkem, jelikož všechny funkce mají poměrně vysoké procento exkluzivního času, což lze vidět ve flat view. Navíc funkce \texttt{rpn\_pop\_two\_values()} má příliš velké procento exkluzivního času na to, co skutečně provádí - to by samo o sobě napovídalo, že funkce pravděpodobně špatně využívá vyrovnávací paměť nebo obsahuje jinou neoptimální strukturu. Nicméně vzhledem k časům ostatních zásobníkových funkcí se dá usoudit, že problém bude v samotné implementaci zásobníku nebo jeho nesprávném využívání ve funkci vyhodnocující RPN zásobník.
 
-Vzhledem ke znalosti kódu lze problém se zásobníkem svést na špatnou lokalitu paměti, která vede k velkému počtu cache-miss při provádění operací nad zásobníkem. Jednotlivé prvky vkládané do zásobníku totiž velmi pravděpodobně leží daleko od sebe vzhledem ke způsobu, jakým je zásobník sestavován. Funkce pro vyhodnocení RPN zásobníku je neefektivně implementovaná hlavně kvůli skutečnosti, že provádí příliš zbytečných alokací a dealokací paměti.
+Vzhledem ke znalosti kódu lze problém se zásobníkem svést na špatnou lokalitu paměti, která vede k velkému počtu výpadků bloku při provádění operací nad zásobníkem. Jednotlivé prvky vkládané do zásobníku totiž velmi pravděpodobně leží daleko od sebe vzhledem ke způsobu, jakým je zásobník sestavován. Funkce pro vyhodnocení RPN zásobníku je neefektivně implementovaná hlavně kvůli skutečnosti, že provádí příliš zbytečných alokací a dealokací paměti.
 
 
 \section{Rozsáhlá aplikace a perf}
 
 Druhým programem je projekt poměrně rozsáhlý. Jedná se o emulátor serverové strany MMORPG\footnote{massively multiplayer online role-playing game, online hra na hrdiny} hry World of Warcraft. Taková aplikace musí v reálném čase komunikovat po síti se stovkami až tisíci klienty, vyhodnocovat akce spojené s herní aktivitou, přeposílat vyhodnocené akce okolí hráčů, starat se o \uv{umělou inteligenci} veškerých postav ve hře, které jsou ovládány serverem a spousty dalších věcí. V momentě, kdy je připojeno více než cca 50 hráčů by již nebylo možné v žádném případě použít nástroj \emph{gprof}, jelikož generuje takovou zátěž v podobě instrumentovaných volání navíc, že se hra stává v podstatě nehratelnou. Proto je pro takto zatížený systém vhodné použít profiler \emph{perf}.
 
-Zdrojové kódy jsou k dispozici na adrese:\\
-\url{https://github.com/TrinityCoreArchive/TrinityCoreOld/}
+Domovská stránka projektu:\\
+\url{https://www.trinitycore.org/}
 
 V této podkapitole budou prezentovány výstupy nasbírané z emulátoru běžícího v rámci projektu iCe Online (\url{http://ice-wow.eu}), kde je provozována obdoba výše uvedeného emulátoru včetně potřebného zatížení.
 
@@ -1222,13 +1126,13 @@ V této podkapitole budou prezentovány výstupy nasbírané z emulátoru běž�
     \label{obr:testprefflamegregg-gcore}
 \end{sidewaysfigure}
 
-Lze porozovat hned několik typických věcí, ve kterých se výstup mírně liší u nástroje \emph{gprof} a \emph{perf}. V první řadě jde samozřejmě o schopnost pracovat s plnou hierarchií volání, tedy možnost generovat strom volání a flame graph. Dalším poměrně významným bodem je přítomnost \uv{falešných} hran v call-graph pohledu (obrázek \ref{obr:testprefgraph-gcore}). Ty vznikají pravděpodobně kvůli optimalizacím, které se dějí, ač byl zkoumaný program kompilován s přepínačem \texttt{-fno-omit-frame-pointer}\footnote{přepínač kompilátoru \emph{gcc} používaný pro zamezení optimalizace call stacku}. Například metoda \texttt{Player::Update()} je volána výhradně z metody \texttt{Map::Update()}, ale přesto existují hrany z jiných metod. Tyto hrany mají často podstatně menší počet vzorků, ale nelze je jednoduše identifikovat, a tedy odstranit. Nástroj by musel umět analyzovat i zdrojový kód, a to v současné době není podporováno.
+Lze pozorovat hned několik typických věcí, ve kterých se výstup mírně liší u nástroje \emph{gprof} a \emph{perf}. V první řadě jde samozřejmě o schopnost pracovat s plnou hierarchií volání, tedy možnost generovat strom volání a flame graph. Dalším poměrně významným bodem je přítomnost \uv{falešných} hran v call-graph pohledu (obrázek \ref{obr:testprefgraph-gcore}). Ty vznikají pravděpodobně kvůli optimalizacím, které se dějí, ač byl zkoumaný program kompilován s přepínačem \texttt{-fno-omit-frame-pointer}\footnote{přepínač kompilátoru \emph{gcc} používaný pro zamezení optimalizace call stacku}. Například metoda \texttt{Player::Update()} je volána výhradně z metody \texttt{Map::Update()}, ale přesto existují hrany z jiných metod. Tyto hrany mají často podstatně menší počet vzorků, ale nelze je jednoduše identifikovat, a tedy odstranit. Nástroj by musel umět analyzovat i zdrojový kód, a to v současné době není podporováno.
 
 Dále si lze všimnout na stejném pohledu i toho, že jsou přítomny dvě oddělené komponenty grafu. To je důsledkem filtrování, jelikož je nastaven filtr na inkluzivní počet vzorků, kdy je zobrazen pouze ten uzel, který má procentuální počet inkluzivních vzorků větší než 15\%. Metoda \texttt{Unit::CastSpell()} je volána z mnoha míst v celé hierarchii volání, takže její inkluzivní počet vzorků byl rozložen mezi všechny volající funkce, což mělo za důsledek to, že ve výsledku žádná z nich nevyhovovala filtru.
 
-Na zbylých pohledech lze pozorovat vcelku očekávané skutečnosti. Flat view (obrázek \ref{obr:testprefflat-gcore}) má nyní trochu jinou distribuci časů, ale to jen díky tomu, že byl analyzován neměřitelně větší projekt. Nejvíce exkluzivních vzorků se nachází v metodě \texttt{Map::Visit()}, což je poměrně očekávaná skutečnost vzhledem k tomu, že tato metoda se stará o průchod jednotlivých polí mapy a zavolání příslušných updaterů. Zároveň v ní lze očekávat největší počet výskytů cache-miss, jelikož její implementace sestává z podstaty věci z nelineárního přístupu k paměti.
+Na zbylých pohledech lze pozorovat vcelku očekávané skutečnosti. Flat view (obrázek \ref{obr:testprefflat-gcore}) má nyní trochu jinou distribuci časů, ale to jen díky tomu, že byl analyzován neměřitelně větší projekt. Nejvíce exkluzivních vzorků se nachází v metodě \texttt{Map::Visit()}, což je poměrně očekávaná skutečnost vzhledem k tomu, že tato metoda se stará o průchod jednotlivých polí mapy a zavolání příslušných updaterů. Zároveň v ní lze očekávat největší počet výpadků bloku paměti, jelikož její implementace sestává z podstaty věci z nelineárního přístupu k paměti.
 
-Nejvíce průkazný je zde pohled zachovávající hierarchii, zde call tree nebo flame graph. Jelikož se jedná o srovnatelné pohledy, jen trochu jinak postavené, lze pozorovat podobné skutečnosti. Výhodou call tree je možnost identifikovat funkci s velkým počtem exkluzivních vzorků v poměru k inkluzivním. To poměrně spolehlivě identifikuje výkonnostní problém. Z obrázku \ref{obr:testpreftree-gcore} lze vidět, že takový problém leží v metodě \texttt{Aura::GetCaster()}. Jde ale pouze o 0.25\%, a proto tento problém není tak velký. Jelikož je výstup v podobě stromu volání velmi rozsáhlý, obtížně se v něm vyhledává takový problém bez znalosti kódu. Vhodnější je pak flame graph, který lze vidět na obrázku \ref{obr:testprefflame-gcore}. Pro porovnání na obrázku \ref{obr:testprefflamegregg-gcore} lze vidět výstup nástroje \emph{FlameGraph}, který až na odlišné uspořádání a seskupení nenalezených symbolů vypadá velmi podobně.
+Nejvíce průkazný je zde pohled zachovávající hierarchii, zde call tree nebo flame graph. Jelikož se jedná o srovnatelné pohledy, jen trochu jinak postavené, lze pozorovat podobné skutečnosti. Výhodou call tree je možnost identifikovat funkci s velkým počtem exkluzivních vzorků v poměru k inkluzivním. To poměrně spolehlivě identifikuje výkonnostní problém. Z obrázku \ref{obr:testpreftree-gcore} lze vidět, že takový problém může ležet v metodě \texttt{Aura::GetCaster()}. Jde ale pouze o 0.25\%, a proto tento problém není tak velký. Jelikož je výstup v podobě stromu volání velmi rozsáhlý, obtížně se v něm vyhledává takový problém bez znalosti kódu. Vhodnější je pak flame graph, který lze vidět na obrázku \ref{obr:testprefflame-gcore}. Pro porovnání na obrázku \ref{obr:testprefflamegregg-gcore} lze vidět výstup nástroje \emph{FlameGraph}, který až na odlišné uspořádání a seskupení nenalezených symbolů vypadá velmi podobně.
 
 V tomto pohledu lze poměrně spolehlivě identifikovat nejnáročnější metody v celém programu, kterými jsou jistě všechny updatovací metody. Díky interaktivitě je možné proklikat do jednotlivých metod a zjistit, co činí výkonnostní potíže. Na grafu je mj. vidět i vysoký sloupec sestávající ze stále stejných symbolů. To je zvláštní případ metod z knihovny \emph{ACE}, kde nejdříve dojde k poměrně rozsáhlému rekurzivnímu volání a až na konci celé rekurze se nachází nějaký výkonný kód. 
 
@@ -1239,9 +1143,18 @@ V tomto pohledu lze poměrně spolehlivě identifikovat nejnáročnější metod
 
 \chapter{Závěr}
 
-Cílem této práce bylo analyzovat dostupné profilingové nástroje, způsoby vizualizace dat jimi nasbíraných, navrhnout a implementovat takový nástroj, který bude umět načíst formáty různých profilerů, zpracovat je a vytvořit pohled, který nebude závislý na platformě.
+Cílem této práce bylo analyzovat dostupné profilingové nástroje, způsoby vizualizace dat jimi nasbíraných, navrhnout a implementovat takový nástroj, který bude umět načíst formáty různých profilerů, zpracovat je a vytvořit sadu pohledů, která nebude závislá na platformě. Tento nástroj pak realizovat jako přenositelný a modulární, a na závěr výsledky ověřit.
 
-TODO: DO
+Výkonnostní analýza software je poměrně rozsáhlým oborem, a proto byla v rámci této práce obsažena jen malá část. Zadání bylo splněno, ale vyvinutý nástroj by se dal spíš označit jako \uv{proof of concept}, tedy software v takovém stavu, že slouží jako dobrý základ pro další vývoj. V současné době sice podporuje většinu základních pohledů a zpracovává výstupní soubory dvou hlavních zástupců na OS GNU/Linux, ale pohledů existuje mnohem více, stejně jako profilerů a platforem, na kterých je myslitelné provádět takovou analýzu.
+
+Logickým pokračováním by byla podpora většího množství formátů pro další platformy. Jako první by připadal v úvahu \emph{cachegrind/callgrind} formát, jelikož se jedná o zástupce posledního z analyzovaných způsobů profilování - interpretace.
+
+Kromě standardních profilerů by mohla být aplikace rozšířena i o vizualizaci dat nasbíraných z běhu programů psaných v interpretovaném nebo hybridním jazyce. Takové jazyky jsou spouštěny přes interpret nebo virtuální stroj, který často podporuje sběr výkonnostních dat. Zástupcem takového jazyka by byla i Java, jakožto dokonce jeden z nejpoužívanějších jazyků celosvětově\cite{tiobe}.
+
+Subjektivně pro mě byla práce přínosná zejména v prohloubení znalostí v oblasti výkonnostní analýzy z doposud čistě povrchního přehledu. Také jsem si vyzkoušel práci se širší škálou profilerů v rámci analýzy, a dále měl prostor experimentovat s nástroji \emph{gprof} a hlavně \emph{perf}. Objevil jsem pro mě spousty nových znalostí a zkušeností, které jsou pro mě velmi zajímavé a přínosné vzhledem k tomu, že jsem jedním z vývojářů herního serveru, kde je výkonnostní analýza velmi důležitým procesem k zachování hratelnosti s rostoucí populací.
+
+Nástroj bych chtěl vyvíjet dále, a to ve výše uvedených směrech. Také bych rád kontaktoval příslušné osoby, které se zabývají výkonnostní analýzou a zpracováním takových dat profesionálně, a další vývoj ladil dle případných podnětů a připomínek. Dále bych rád nástroj zapojil do nějakého z větších stále se rozvíjejících projektů jako nástroj spojený s pravidelnou analýzou výkonu.
+
 
 
 
@@ -1281,16 +1194,17 @@ TODO: DO
 
 \novazkratka{zkIRQ}{IRQ}{Interrupt Request - vnější hardwarové přerušení}
 \novazkratka{zkHPC}{HPC}{Hardware Performance Counters - hardwarové výkonnostní čítače}
-\novazkratka{zkNMI}{SSD}{Solid-state drive - disková jednotka založená nejčastěji na nevolatilní flash paměti}
-\novazkratka{zkNMI}{NMI}{Non-maskable interrupt - nemaskovatelné přerušení}
-\novazkratka{zkOS}{OS}{Operační systém}
-\novazkratka{zkCPU}{CPU}{Central processing unit - hlavní výpočetní jednotka počítače}
-\novazkratka{zkPC}{PC}{Program counter - instrukční čítač (často registr CPU) v rámci programu, obsahuje offset instrukce k provedení}
-\novazkratka{zkIP}{IP}{Instruction pointer - jiný název pro program counter (PC), často spojovaný navíc s nějakým segmentovým registrem, typicky kódovým (CS:IP)}
-\novazkratka{zkOS}{CSV}{Comma-separated values - formát souboru s buňkami oddělenými specifickým znakem (čárka, středník, aj.)}
+\novazkratka{zkNMI}{SSD}{Solid-State Drive - disková jednotka založená nejčastěji na nevolatilní flash paměti}
+\novazkratka{zkNMI}{NMI}{Non-Maskable Interrupt - nemaskovatelné přerušení}
+\novazkratka{zkOS}{OS}{Operační Systém}
+\novazkratka{zkCPU}{CPU}{Central Processing Unit - hlavní výpočetní jednotka počítače}
+\novazkratka{zkPC}{PC}{Program Counter - instrukční čítač (často registr CPU) v rámci programu, obsahuje offset instrukce k provedení}
+\novazkratka{zkIP}{IP}{Instruction Pointer - jiný název pro program counter (PC), často spojovaný navíc s nějakým segmentovým registrem, typicky kódovým (CS:IP)}
+\novazkratka{zkOS}{CSV}{Comma-Separated Values - formát souboru s buňkami oddělenými specifickým znakem (čárka, středník, aj.)}
 \novazkratka{zkHTML}{HTML}{HyperText Markup Language - značkovací jazyk používaný pro webové stránky}
 \novazkratka{zkCSS}{CSS}{Cascading Style Sheets - kaskádové styly používané pro webové stránky}
 \novazkratka{zkPIVO}{PIVO}{Profiler-Independent Visual Output - název nástroje vyvíjeného v rámci této práce}
+\novazkratka{zkGUI}{GUI}{Graphical User Interface - grafické uživatelské rozhraní}
 
 \end{seznamzkratek}
 

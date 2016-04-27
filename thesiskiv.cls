@@ -128,7 +128,7 @@
   \medskip
   \parbox{\textwidth}{\parindent 1.5em\noindent \KIV@abstracttexten}
   \end{otherlanguage}
-  \vspace{-5em} % active only if both abstracts fit on a single page
+  \vspace{-5.5em} % active only if both abstracts fit on a single page
   \begin{otherlanguage}{czech}
   \section*{\KIV@chapstarrule Abstrakt}
   \medskip
